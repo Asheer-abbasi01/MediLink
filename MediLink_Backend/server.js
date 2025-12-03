@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import mongoose from "mongoose"; // Added for graceful shutdown
 // import "express-async-errors"; // handles rejected promises in routes automatically
 
 import connectDB from "./config/db.js";
@@ -16,6 +17,7 @@ import patientRoutes from "./routes/patientRoutes.js";
 import medicineRoutes from "./routes/medicineRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import appointmentRoutes from "./routes/appointmentRoutes.js";
 
 // import staffRoutes from "./routes/staffRoutes.js";
 // import nurseRoutes from "./routes/nurseRoutes.js";
@@ -27,7 +29,6 @@ import authRoutes from "./routes/authRoutes.js";
 // import medicinePrescriptionRoutes from "./routes/medicinePrescriptionRoutes.js";
 
 dotenv.config();
-connectDB(); // connect to MongoDB
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use("/api/bills", billRoutes);
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 
 // ----- 404 handler -----
@@ -70,14 +72,63 @@ app.use((err, req, res, next) => {
 });
 
 // ----- START SERVER -----
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+const startServer = async () => {
+  try {
+    // Wait for database connection before starting server
+    await connectDB();
 
-// Graceful shutdown (optional but recommended)
-process.on("SIGTERM", () => {
-  console.info("SIGTERM received, closing server...");
-  server.close(() => {
-    console.log("HTTP server closed.");
-    process.exit(0);
-  });
-});
+    const PORT = process.env.PORT || 5000;
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    });
+
+    // Graceful shutdown handler
+    const gracefulShutdown = async (signal) => {
+      console.log(`\n${signal} received, closing server gracefully...`);
+
+      server.close(async () => {
+        console.log("✅ HTTP server closed");
+
+        try {
+          // Close database connection
+          await mongoose.connection.close();
+          console.log("✅ Database connection closed");
+          process.exit(0);
+        } catch (err) {
+          console.error("❌ Error during shutdown:", err);
+          process.exit(1);
+        }
+      });
+
+      // Force shutdown after 10 seconds
+      setTimeout(() => {
+        console.error("⚠️ Forced shutdown after timeout");
+        process.exit(1);
+      }, 10000);
+    };
+
+    // Handle shutdown signals
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+    // Handle uncaught errors
+    process.on("uncaughtException", (err) => {
+      console.error("💥 Uncaught Exception:", err);
+      gracefulShutdown("UNCAUGHT_EXCEPTION");
+    });
+
+    process.on("unhandledRejection", (reason, promise) => {
+      console.error("💥 Unhandled Rejection at:", promise, "reason:", reason);
+      gracefulShutdown("UNHANDLED_REJECTION");
+    });
+
+  } catch (err) {
+    console.error("❌ Failed to start server:", err.message);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();

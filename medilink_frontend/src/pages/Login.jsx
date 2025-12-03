@@ -33,11 +33,17 @@ const Login = () => {
       localStorage.setItem("token", token);
       localStorage.setItem("userRole", role); // Key matches AppRoutes
 
+      // Save user data for appointments
+      if (res.data.user) {
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+      }
+
       // Navigate based on role (case-insensitive check)
       if (role.toLowerCase() === "admin") {
         navigate("/admin/dashboard");
       } else {
-        navigate("/user/home");
+        // Users go back to home page with access to book appointments
+        navigate("/");
       }
     } catch (err) {
       console.error("Login Error:", err);

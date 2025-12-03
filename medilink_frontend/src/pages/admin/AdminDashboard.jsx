@@ -74,12 +74,12 @@ const AdminDashboard = () => {
     );
 
   const quickActions = [
-    { name: "Doctors", path: "/admin/doctors", icon: "👨‍⚕️", color: "from-teal-500 to-teal-600" },
-    { name: "Patients", path: "/admin/patients", icon: "🏥", color: "from-blue-500 to-blue-600" },
-    { name: "Bills", path: "/admin/bills", icon: "📄", color: "from-purple-500 to-purple-600" },
-    { name: "Medicines", path: "/admin/medicines", icon: "💊", color: "from-pink-500 to-pink-600" },
-    { name: "Payments", path: "/admin/payments", icon: "💳", color: "from-orange-500 to-orange-600" },
-    { name: "Analytics", path: "/admin/analytics", icon: "📊", color: "from-green-500 to-green-600" },
+    { name: "Doctors", path: "/admin/doctors", icon: "👨‍⚕️" },
+    { name: "Patients", path: "/admin/patients", icon: "🏥" },
+    { name: "Bills", path: "/admin/bills", icon: "📄" },
+    { name: "Medicines", path: "/admin/medicines", icon: "💊" },
+    { name: "Payments", path: "/admin/payments", icon: "💳" },
+    { name: "Analytics", path: "/admin/analytics", icon: "📊" },
   ];
 
   return (
@@ -92,69 +92,87 @@ const AdminDashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-teal-100 text-sm font-medium">Total Doctors</p>
-              <h3 className="text-4xl font-bold mt-2">{stats.doctors}</h3>
-              <p className="text-teal-100 text-xs mt-2">Active medical staff</p>
+        {/* Doctors Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Doctors</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.doctors}</h3>
+              <p className="text-gray-400 text-xs">Active medical staff</p>
             </div>
-            <div className="text-6xl opacity-20">👨‍⚕️</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              👨‍⚕️
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-blue-100 text-sm font-medium">Total Patients</p>
-              <h3 className="text-4xl font-bold mt-2">{stats.patients}</h3>
-              <p className="text-blue-100 text-xs mt-2">Registered patients</p>
+        {/* Patients Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Patients</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.patients}</h3>
+              <p className="text-gray-400 text-xs">Registered patients</p>
             </div>
-            <div className="text-6xl opacity-20">🏥</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              🏥
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-sm font-medium">Total Medicines</p>
-              <h3 className="text-4xl font-bold mt-2">{stats.medicines}</h3>
-              <p className="text-purple-100 text-xs mt-2">In inventory</p>
+        {/* Medicines Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Medicines</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.medicines}</h3>
+              <p className="text-gray-400 text-xs">In inventory</p>
             </div>
-            <div className="text-6xl opacity-20">💊</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              💊
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-pink-100 text-sm font-medium">Total Bills</p>
-              <h3 className="text-4xl font-bold mt-2">{stats.bills}</h3>
-              <p className="text-pink-100 text-xs mt-2">Generated bills</p>
+        {/* Bills Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Bills</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.bills}</h3>
+              <p className="text-gray-400 text-xs">Generated bills</p>
             </div>
-            <div className="text-6xl opacity-20">📄</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              📄
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-sm font-medium">Total Payments</p>
-              <h3 className="text-4xl font-bold mt-2">{stats.payments}</h3>
-              <p className="text-orange-100 text-xs mt-2">Processed payments</p>
+        {/* Payments Card */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Payments</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.payments}</h3>
+              <p className="text-gray-400 text-xs">Processed payments</p>
             </div>
-            <div className="text-6xl opacity-20">💳</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              💳
+            </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-              <h3 className="text-4xl font-bold mt-2">${stats.revenue.toFixed(2)}</h3>
-              <p className="text-green-100 text-xs mt-2">All time revenue</p>
+        {/* Revenue Card - Special emerald green for success metric */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-gray-500 text-sm font-medium mb-3">Total Revenue</p>
+              <h3 className="text-4xl font-bold text-gray-900 mb-2">${stats.revenue.toFixed(2)}</h3>
+              <p className="text-gray-400 text-xs">All time revenue</p>
             </div>
-            <div className="text-6xl opacity-20">💰</div>
+            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+              💰
+            </div>
           </div>
         </div>
       </div>
@@ -167,7 +185,7 @@ const AdminDashboard = () => {
             <button
               key={action.path}
               onClick={() => navigate(action.path)}
-              className={`bg-gradient-to-br ${action.color} text-white rounded-xl p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center gap-3`}
+              className="bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center gap-3"
             >
               <span className="text-4xl">{action.icon}</span>
               <span className="font-semibold text-sm">{action.name}</span>
@@ -198,8 +216,8 @@ const AdminDashboard = () => {
                   <div className="text-right">
                     <p className="font-bold text-teal-600">${activity.amount}</p>
                     <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${activity.status === 'Paid' ? 'bg-green-100 text-green-800' :
-                        activity.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                      activity.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                       }`}>
                       {activity.status}
                     </span>

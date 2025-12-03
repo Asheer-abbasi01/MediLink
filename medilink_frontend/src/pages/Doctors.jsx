@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import BookAppointmentModal from "../components/BookAppointmentModal";
 
 export default function Doctors() {
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [specialtyFilter, setSpecialtyFilter] = useState("All");
+    const [selectedDoctor, setSelectedDoctor] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
         fetchDoctors();
@@ -33,6 +37,29 @@ export default function Doctors() {
         const matchesSpecialty = specialtyFilter === "All" || doc.specialty === specialtyFilter;
         return matchesSearch && matchesSpecialty;
     });
+
+    const navigate = useNavigate();
+
+    // Handle booking modal
+    const handleBookAppointment = (doctor) => {
+        // Check if user is logged in
+        const token = localStorage.getItem("token");
+        if (!token) {
+            // Optionally save the intended destination or doctor to redirect back after login
+            // For now, just redirect to login
+            if (window.confirm("You need to login to book an appointment. Go to login page?")) {
+                navigate("/login");
+            }
+            return;
+        }
+        setSelectedDoctor(doctor);
+        setIsModalOpen(true);
+    };
+
+    const handleBookingSuccess = () => {
+        // Optionally refresh data or show success message
+        console.log("Appointment booked successfully");
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -110,7 +137,10 @@ export default function Doctors() {
                                             <span className="font-semibold">License:</span> {doctor.licenseNumber}
                                         </p>
                                     )}
-                                    <button className="w-full bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 transition-colors shadow-md">
+                                    <button
+                                        onClick={() => handleBookAppointment(doctor)}
+                                        className="w-full bg-teal-600 text-white py-3 rounded-xl font-semibold hover:bg-teal-700 transition-colors shadow-md"
+                                    >
                                         Book Appointment
                                     </button>
                                 </div>
@@ -119,6 +149,14 @@ export default function Doctors() {
                     </div>
                 )}
             </section>
+
+            {/* Booking Modal */}
+            <BookAppointmentModal
+                doctor={selectedDoctor}
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={handleBookingSuccess}
+            />
 
             {/* Footer */}
             <footer className="bg-white border-t border-gray-200 py-12 text-center text-slate-500 text-sm">

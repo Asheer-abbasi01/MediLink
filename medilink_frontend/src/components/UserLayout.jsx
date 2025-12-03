@@ -26,16 +26,22 @@ const UserLayout = ({ children }) => {
                         Dashboard
                     </Link>
                     <Link
-                        to="/user/appointment"
+                        to="/doctors"
                         className="block px-4 py-2 text-gray-700 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors"
                     >
-                        Appointments
+                        Book Appointment
                     </Link>
                     <Link
-                        to="/user/medicine"
+                        to="/user/appointments"
                         className="block px-4 py-2 text-gray-700 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors"
                     >
-                        Medicines
+                        My Appointments
+                    </Link>
+                    <Link
+                        to="/medicines"
+                        className="block px-4 py-2 text-gray-700 hover:bg-teal-50 hover:text-teal-600 rounded-lg transition-colors"
+                    >
+                        Buy Medicines
                     </Link>
                     <button
                         onClick={handleLogout}

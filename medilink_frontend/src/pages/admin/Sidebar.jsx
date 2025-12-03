@@ -9,6 +9,7 @@ const Sidebar = () => {
     { name: "Dashboard", path: "/admin/dashboard" },
     { name: "Analytics", path: "/admin/analytics" },
     { name: "Doctors", path: "/admin/doctors" },
+    { name: "Appointments", path: "/admin/appointments" },
     { name: "Patients", path: "/admin/patients" },
     { name: "Bills", path: "/admin/bills" },
     { name: "Medicines", path: "/admin/medicines" },

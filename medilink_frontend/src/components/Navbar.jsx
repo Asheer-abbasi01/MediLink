@@ -5,8 +5,26 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  const isLoggedIn = !!localStorage.getItem("token");
+  const userRole = localStorage.getItem("userRole");
+
   const handleGetStarted = () => {
     navigate("/choose-role");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  const handleDashboard = () => {
+    if (userRole === 'admin') {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/user/home");
+    }
   };
 
   return (
@@ -37,16 +55,44 @@ export default function Navbar() {
               </Link>
             </li>
           ))}
+          {isLoggedIn && userRole === 'user' && (
+            <li>
+              <Link
+                to="/user/appointments"
+                className="hover:text-teal-600 transition-colors relative group py-2"
+              >
+                My Appointments
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-teal-600 transition-all duration-300 group-hover:w-full"></span>
+              </Link>
+            </li>
+          )}
         </ul>
 
         {/* Desktop CTA */}
-        <div className="hidden md:block">
-          <button
-            onClick={handleGetStarted}
-            className="bg-teal-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-teal-200 hover:bg-teal-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-          >
-            Get Started
-          </button>
+        <div className="hidden md:block flex items-center gap-4">
+          {isLoggedIn ? (
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleDashboard}
+                className="text-teal-600 font-semibold hover:text-teal-800 transition-colors"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-50 text-red-600 px-6 py-2.5 rounded-xl font-semibold border border-red-100 hover:bg-red-100 transition-all duration-300"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleGetStarted}
+              className="bg-teal-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-teal-200 hover:bg-teal-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
+            >
+              Get Started
+            </button>
+          )}
         </div>
 
         {/* Mobile Hamburger */}
@@ -75,12 +121,39 @@ export default function Navbar() {
               {item}
             </Link>
           ))}
-          <button
-            onClick={() => { setMenuOpen(false); handleGetStarted(); }}
-            className="bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-md active:scale-95 transition-all w-full"
-          >
-            Get Started
-          </button>
+          {isLoggedIn && userRole === 'user' && (
+            <Link
+              to="/user/appointments"
+              className="text-slate-600 font-medium hover:text-teal-600 hover:bg-teal-50 px-4 py-3 rounded-xl transition-all"
+              onClick={() => setMenuOpen(false)}
+            >
+              My Appointments
+            </Link>
+          )}
+
+          {isLoggedIn ? (
+            <>
+              <button
+                onClick={() => { setMenuOpen(false); handleDashboard(); }}
+                className="bg-teal-50 text-teal-600 px-6 py-3 rounded-xl font-semibold hover:bg-teal-100 transition-all w-full text-left"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); handleLogout(); }}
+                className="bg-red-50 text-red-600 px-6 py-3 rounded-xl font-semibold hover:bg-red-100 transition-all w-full text-left"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => { setMenuOpen(false); handleGetStarted(); }}
+              className="bg-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-md active:scale-95 transition-all w-full"
+            >
+              Get Started
+            </button>
+          )}
         </div>
       )}
     </nav>

@@ -30,6 +30,7 @@ import AdminBills from "../pages/admin/AdminBills";
 import UserHome from "../pages/user/UserHome";
 import Appointment from "../pages/user/Appointment";
 import Medicine from "../pages/user/Medicine";
+import MyAppointments from "../pages/user/MyAppointments";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, role }) => {
@@ -88,6 +89,7 @@ export default function AppRoutes() {
             <Routes>
               <Route path="home" element={<UserHome />} />
               <Route path="appointment" element={<Appointment />} />
+              <Route path="appointments" element={<MyAppointments />} />
               <Route path="medicine" element={<Medicine />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
