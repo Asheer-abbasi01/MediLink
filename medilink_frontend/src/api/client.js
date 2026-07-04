@@ -1,13 +1,17 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
-
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  "https://medilink-backend-tb14.onrender.com";
+  
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+
 
 // Request interceptor to add authorization token
 client.interceptors.request.use(
