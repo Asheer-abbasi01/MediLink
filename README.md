@@ -1,4 +1,4 @@
-# 🏥 MediLink – Advanced Healthcare Management Platform (v2.0)
+# MediLink – Advanced Healthcare Management Platform (v2.0)
 
 MediLink is a production-ready, feature-rich healthcare management SaaS platform built on the modern MERN stack. Designed with a premium glassmorphic UI/UX, unified component library, and strict enterprise security policies, MediLink streamlines clinic operations, patient portals, and automated stock systems.
 
