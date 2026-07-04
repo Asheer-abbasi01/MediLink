@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import client from "../../api/client";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Badge from "../../components/ui/Badge";
+import { TableSkeleton } from "../../components/ui/Loader";
+import Toast from "../../components/ui/Toast";
 
 export default function MyAppointments() {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all"); // all, upcoming, past
     const [error, setError] = useState("");
+    const [toast, setToast] = useState(null);
+
+    const showToast = (message, type = "success") => {
+        setToast({ message, type });
+    };
 
     useEffect(() => {
         fetchAppointments();
@@ -24,11 +34,10 @@ export default function MyAppointments() {
             }
 
             const user = JSON.parse(userStr);
-            const res = await axios.get(
-                `http://localhost:5000/api/appointments/user/${user.id}`
-            );
-
-            setAppointments(res.data.appointments || []);
+            const userId = user.id || user._id;
+            
+            const res = await client.get(`/api/appointments/user/${userId}`);
+            setAppointments(res.data.appointments || res.data || []);
             setLoading(false);
         } catch (err) {
             console.error("Error fetching appointments:", err);
@@ -38,22 +47,20 @@ export default function MyAppointments() {
     };
 
     const handleCancelAppointment = async (appointmentId) => {
-        if (!window.confirm("Are you sure you want to cancel this appointment?")) {
+        if (!window.confirm("Are you sure you want to cancel this appointment slot request?")) {
             return;
         }
 
         try {
-            await axios.delete(`http://localhost:5000/api/appointments/${appointmentId}`);
-            // Refresh appointments
+            await client.delete(`/api/appointments/${appointmentId}`);
             fetchAppointments();
-            alert("Appointment cancelled successfully");
+            showToast("Appointment cancelled successfully");
         } catch (err) {
             console.error("Error cancelling appointment:", err);
-            alert("Failed to cancel appointment");
+            showToast("Failed to cancel appointment", "error");
         }
     };
 
-    // Filter appointments
     const filteredAppointments = appointments.filter(apt => {
         const aptDate = new Date(apt.scheduledAt);
         const now = new Date();
@@ -66,180 +73,132 @@ export default function MyAppointments() {
         return true; // all
     });
 
-    const getStatusColor = (status) => {
+    const getStatusVariant = (status) => {
         switch (status) {
-            case "pending":
-                return "bg-yellow-100 text-yellow-800 border-yellow-200";
-            case "confirmed":
-                return "bg-green-100 text-green-800 border-green-200";
-            case "completed":
-                return "bg-blue-100 text-blue-800 border-blue-200";
-            case "cancelled":
-                return "bg-red-100 text-red-800 border-red-200";
-            case "no-show":
-                return "bg-gray-100 text-gray-800 border-gray-200";
-            default:
-                return "bg-gray-100 text-gray-800 border-gray-200";
+            case "pending": return "warning";
+            case "confirmed": return "success";
+            case "completed": return "info";
+            case "cancelled": return "danger";
+            default: return "neutral";
         }
     };
 
     const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric"
+        return new Date(dateString).toLocaleDateString("en-US", {
+            weekday: "long", year: "numeric", month: "long", day: "numeric"
         });
     };
 
     const formatTime = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true
+        return new Date(dateString).toLocaleTimeString("en-US", {
+            hour: "2-digit", minute: "2-digit", hour12: true
         });
     };
 
+    if (loading && appointments.length === 0) {
+        return <TableSkeleton rows={4} cols={5} />;
+    }
+
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">My Appointments</h1>
-                    <p className="text-slate-600">View and manage your upcoming and past appointments</p>
+        <div className="space-y-8 font-sans">
+            {toast && (
+                <Toast
+                  message={toast.message}
+                  type={toast.type}
+                  onClose={() => setToast(null)}
+                />
+            )}
+
+            {/* Header */}
+            <div>
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">My Scheduled Visits</h2>
+                <p className="text-slate-500 text-sm font-medium mt-1">Review your upcoming consultations, prescriptions, and past diagnostics timeline</p>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex border-b border-slate-100 bg-white p-1 rounded-xl shadow-sm self-start gap-1 w-full max-w-sm">
+                {["all", "upcoming", "past"].map((t) => (
+                    <button
+                        key={t}
+                        onClick={() => setFilter(t)}
+                        className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all uppercase tracking-wider ${
+                          filter === t
+                            ? "bg-teal-600 text-white shadow-md shadow-teal-600/10"
+                            : "text-slate-600 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
+            {error && (
+                <div className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-3 rounded-2xl text-xs font-bold text-center">
+                    ⚠️ {error}
                 </div>
+            )}
 
-                {/* Filter Tabs */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 mb-6 flex gap-2">
-                    <button
-                        onClick={() => setFilter("all")}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${filter === "all"
-                            ? "bg-teal-600 text-white"
-                            : "text-slate-600 hover:bg-gray-100"
-                            }`}
-                    >
-                        All
-                    </button>
-                    <button
-                        onClick={() => setFilter("upcoming")}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${filter === "upcoming"
-                            ? "bg-teal-600 text-white"
-                            : "text-slate-600 hover:bg-gray-100"
-                            }`}
-                    >
-                        Upcoming
-                    </button>
-                    <button
-                        onClick={() => setFilter("past")}
-                        className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-colors ${filter === "past"
-                            ? "bg-teal-600 text-white"
-                            : "text-slate-600 hover:bg-gray-100"
-                            }`}
-                    >
-                        Past
-                    </button>
+            {/* List */}
+            {filteredAppointments.length === 0 ? (
+                <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center text-slate-400 shadow-sm">
+                    <span className="text-5xl block mb-3">📅</span>
+                    <p className="font-semibold text-lg">No appointments match current filters</p>
                 </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6">
-                        {error}
-                    </div>
-                )}
-
-                {/* Loading State */}
-                {loading ? (
-                    <div className="text-center py-20">
-                        <div className="inline-block w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-slate-600 mt-4">Loading appointments...</p>
-                    </div>
-                ) : filteredAppointments.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-gray-200">
-                        <div className="text-6xl mb-4">📅</div>
-                        <h3 className="text-xl font-semibold text-slate-900 mb-2">No Appointments Found</h3>
-                        <p className="text-slate-600">
-                            {filter === "upcoming"
-                                ? "You don't have any upcoming appointments"
-                                : filter === "past"
-                                    ? "You don't have any past appointments"
-                                    : "You haven't booked any appointments yet"}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {filteredAppointments.map((appointment) => (
-                            <div
-                                key={appointment._id}
-                                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                            >
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                    {/* Appointment Info */}
-                                    <div className="flex-1">
-                                        <div className="flex items-start gap-4">
-                                            {/* Doctor Avatar */}
-                                            <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
-                                                {appointment.doctor?.name?.charAt(0) || "D"}
-                                            </div>
-
-                                            {/* Details */}
-                                            <div className="flex-1">
-                                                <h3 className="text-xl font-bold text-slate-900 mb-1">
-                                                    Dr. {appointment.doctor?.name}
-                                                </h3>
-                                                <p className="text-teal-600 font-semibold mb-2">
-                                                    {appointment.doctor?.specialty}
-                                                </p>
-                                                <div className="space-y-1 text-sm text-slate-600">
-                                                    <p className="flex items-center gap-2">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                        </svg>
-                                                        {formatDate(appointment.scheduledAt)}
-                                                    </p>
-                                                    <p className="flex items-center gap-2">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        {formatTime(appointment.scheduledAt)}
-                                                    </p>
-                                                    {appointment.notes && (
-                                                        <p className="flex items-start gap-2 mt-2">
-                                                            <svg className="w-4 h-4 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                            </svg>
-                                                            <span className="italic">{appointment.notes}</span>
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Status and Actions */}
-                                    <div className="flex flex-col items-end gap-3">
-                                        <span className={`px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(appointment.status)}`}>
-                                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+            ) : (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                    {filteredAppointments.map((appt) => (
+                        <Card 
+                          key={appt._id} 
+                          bodyClass="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+                          hoverEffect
+                        >
+                            <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-teal-50 border border-teal-100 rounded-2xl flex items-center justify-center text-teal-600 text-xl font-bold flex-shrink-0">
+                                    {appt.doctor?.name ? appt.doctor.name.charAt(0).toUpperCase() : "D"}
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                                        Dr. {appt.doctor?.name || "Specialist"}
+                                    </h3>
+                                    <p className="text-teal-600 text-xs font-bold uppercase tracking-wider">
+                                        {appt.doctor?.specialty}
+                                    </p>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-400 text-xs font-semibold pt-1">
+                                        <span className="flex items-center gap-1">
+                                            📅 {formatDate(appt.scheduledAt)}
                                         </span>
-
-                                        {/* Cancel Button - Only show for pending/confirmed appointments */}
-                                        {(appointment.status === "pending" || appointment.status === "confirmed") &&
-                                            new Date(appointment.scheduledAt) > new Date() && (
-                                                <button
-                                                    onClick={() => handleCancelAppointment(appointment._id)}
-                                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors border border-red-200"
-                                                >
-                                                    Cancel Appointment
-                                                </button>
-                                            )}
+                                        <span className="flex items-center gap-1">
+                                            ⏰ {formatTime(appt.scheduledAt)}
+                                        </span>
                                     </div>
+                                    {appt.notes && (
+                                        <p className="text-slate-500 text-xs italic mt-2 border-l-2 border-teal-500/30 pl-2">
+                                            "{appt.notes}"
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+
+                            <div className="flex flex-row md:flex-col items-center md:items-end gap-3 justify-between md:justify-start border-t border-slate-50 pt-4 md:border-0 md:pt-0">
+                                <Badge variant={getStatusVariant(appt.status)} size="xs">
+                                    {appt.status}
+                                </Badge>
+
+                                {(appt.status === "pending" || appt.status === "confirmed") && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="!border-rose-100 text-rose-600 hover:bg-rose-50"
+                                        onClick={() => handleCancelAppointment(appt._id)}
+                                    >
+                                        Cancel Appointment
+                                    </Button>
+                                )}
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

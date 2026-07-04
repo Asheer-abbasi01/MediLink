@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
+import client from "../api/client";
 import Navbar from "../components/Navbar";
 import PurchasePopup from "../components/PurchasePopup";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Input from "../components/ui/Input";
+import Badge from "../components/ui/Badge";
+import { Skeleton } from "../components/ui/Loader";
 
 export default function Medicines() {
     const [medicines, setMedicines] = useState([]);
@@ -17,7 +22,7 @@ export default function Medicines() {
 
     const fetchMedicines = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/medicines");
+            const res = await client.get("/api/medicines");
             setMedicines(res.data || []);
             setLoading(false);
         } catch (err) {
@@ -26,7 +31,6 @@ export default function Medicines() {
         }
     };
 
-    // Filter medicines first
     const filteredMedicines = medicines.filter(med => {
         const matchesSearch = med.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             med.genericName?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -34,42 +38,40 @@ export default function Medicines() {
         return matchesSearch && matchesStatus;
     });
 
-    // Group medicines by name
     const groupedMedicines = useMemo(() => {
         const groups = {};
         filteredMedicines.forEach(med => {
             const name = med.name?.trim();
             if (!name) return;
 
-            // Normalize key to lowercase for grouping
             const key = name.toLowerCase();
+
+            const stock = med.stock !== undefined ? med.stock : med.quantity || 0;
 
             if (!groups[key]) {
                 groups[key] = {
                     ...med,
-                    _id: med._id, // Keep primary ID for key
-                    ids: [med._id], // Track all IDs
-                    medicines: [med], // Track all medicine objects
-                    stock: med.stock || 0,
-                    totalStock: med.stock || 0
+                    _id: med._id,
+                    ids: [med._id],
+                    medicines: [med],
+                    stock: stock,
+                    totalStock: stock
                 };
             } else {
                 groups[key].medicines.push(med);
                 groups[key].ids.push(med._id);
-                groups[key].totalStock += (med.stock || 0);
-                // We keep the details (price, etc) of the first one found
+                groups[key].totalStock += stock;
             }
         });
         return Object.values(groups);
     }, [filteredMedicines]);
 
     const handleBuyClick = (group) => {
-        setSelectedMedicine(group); // Now passing the grouped object
+        setSelectedMedicine(group);
         setShowPurchasePopup(true);
     };
 
-    const handlePurchaseSuccess = (updatedMedicine) => {
-        // Refresh medicines to get latest stock
+    const handlePurchaseSuccess = () => {
         fetchMedicines();
     };
 
@@ -79,133 +81,133 @@ export default function Medicines() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Navbar />
+        <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col justify-between">
+            <div>
+                <Navbar />
 
-            {/* Header */}
-            <section className="bg-gradient-to-r from-teal-600 to-blue-600 py-12 px-6">
-                <div className="max-w-7xl mx-auto text-center text-white">
-                    <h1 className="text-3xl md:text-4xl font-bold mb-3">Online Pharmacy</h1>
-                    <p className="text-teal-100 text-base max-w-2xl mx-auto">
-                        Order medicines online and get them delivered to your doorstep
-                    </p>
-                </div>
-            </section>
+                {/* Hero */}
+                <section className="bg-gradient-to-r from-teal-600 to-teal-800 py-16 px-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-white/5 opacity-10 pattern-dots"></div>
+                    <div className="max-w-7xl mx-auto text-center text-white relative z-10 space-y-4">
+                        <Badge variant="success" size="sm" className="!bg-teal-500/20 !text-teal-100 !border-teal-400/20">
+                            💊 PHARMACY INVENTORY
+                        </Badge>
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">Online Medical Pharmacy</h1>
+                        <p className="text-teal-100 text-sm md:text-base max-w-xl mx-auto font-medium">
+                            Browse certified medical drugs, dosages, and verify stock availability instantly.
+                        </p>
+                    </div>
+                </section>
 
-            {/* Search & Filter */}
-            <section className="max-w-7xl mx-auto px-6 -mt-6">
-                <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-100">
-                    <div className="flex flex-col md:flex-row gap-3">
+                {/* Search & Filter */}
+                <section className="max-w-7xl mx-auto px-6 -mt-8 relative z-20">
+                    <Card bodyClass="p-5 flex flex-col md:flex-row gap-4">
                         <div className="flex-1">
-                            <input
-                                type="text"
-                                placeholder="Search medicines..."
+                            <Input
+                                placeholder="Search by name or chemical generic..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-gray-50 text-sm"
+                                icon={
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                  </svg>
+                                }
                             />
                         </div>
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-gray-50 text-sm"
-                        >
-                            <option value="All">All Status</option>
-                            <option value="Available">Available</option>
-                            <option value="Out of Stock">Out of Stock</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
+                        <div className="flex flex-col gap-1 w-full md:max-w-xs justify-center">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-200"
+                            >
+                                <option value="All">All Availability Status</option>
+                                <option value="Available">Available</option>
+                                <option value="Out of Stock">Out of Stock</option>
+                            </select>
+                        </div>
+                    </Card>
+                </section>
 
-            {/* Medicines Grid */}
-            <section className="max-w-7xl mx-auto px-6 py-12">
-                {loading ? (
-                    <div className="text-center py-20">
-                        <div className="inline-block w-10 h-10 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-slate-600 mt-4 text-sm">Loading medicines...</p>
-                    </div>
-                ) : groupedMedicines.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="text-slate-600 text-lg">No medicines found matching your criteria.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {groupedMedicines.map((group) => {
-                            const stock = group.totalStock;
-                            const isAvailable = stock > 0;
+                {/* Grid */}
+                <section className="max-w-7xl mx-auto px-6 py-12">
+                    {loading ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <Skeleton className="h-64 rounded-2xl animate-pulse" />
+                            <Skeleton className="h-64 rounded-2xl animate-pulse" />
+                            <Skeleton className="h-64 rounded-2xl animate-pulse" />
+                            <Skeleton className="h-64 rounded-2xl animate-pulse" />
+                        </div>
+                    ) : groupedMedicines.length === 0 ? (
+                        <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center text-slate-400 shadow-sm max-w-xl mx-auto">
+                            <span className="text-5xl block mb-3">💊</span>
+                            <p className="font-semibold text-lg">No matching medical items in catalog</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-200">
+                            {groupedMedicines.map((group) => {
+                                const stock = group.totalStock;
+                                const isAvailable = stock > 0;
 
-                            return (
-                                <div
-                                    key={group._id}
-                                    className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 relative group"
-                                >
-                                    {/* Stock Badge */}
-                                    <div className="absolute top-2 right-2 z-10">
-                                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold backdrop-blur-sm shadow-sm ${stock > 10
-                                            ? "bg-green-100 text-green-700 border border-green-200"
-                                            : stock > 0
-                                                ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                                                : "bg-red-100 text-red-700 border border-red-200"
-                                            }`}>
-                                            Stock: {stock}
-                                        </div>
-                                    </div>
-
-                                    <div className="h-24 bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center group-hover:from-teal-100 group-hover:to-blue-100 transition-colors">
-                                        <span className="text-4xl transform group-hover:scale-110 transition-transform duration-300">💊</span>
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight truncate" title={group.name}>{group.name}</h3>
-                                        <p className="text-xs text-slate-500 mb-3 truncate">
-                                            <span className="font-medium">Generic:</span> {group.genericName || "N/A"}
-                                        </p>
-
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-xl font-bold text-teal-600">${group.price}</span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isAvailable
-                                                ? "bg-teal-50 text-teal-700 border border-teal-100"
-                                                : "bg-gray-100 text-gray-500 border border-gray-200"
-                                                }`}>
-                                                {isAvailable ? "Available" : "Out of Stock"}
-                                            </span>
+                                return (
+                                    <Card 
+                                      key={group._id} 
+                                      hoverEffect
+                                      className="relative overflow-hidden"
+                                      bodyClass="p-0 flex flex-col justify-between h-full"
+                                    >
+                                        {/* Stock Badge */}
+                                        <div className="absolute top-3 right-3 z-10">
+                                            <Badge variant={stock > 10 ? "success" : stock > 0 ? "warning" : "danger"} size="xs">
+                                                Stock: {stock}
+                                            </Badge>
                                         </div>
 
-                                        <div className="space-y-1 mb-4">
-                                            {group.dosage && (
-                                                <p className="text-xs text-slate-500 flex justify-between">
-                                                    <span className="font-medium">Dosage:</span>
-                                                    <span>{group.dosage}</span>
-                                                </p>
-                                            )}
-                                            {group.manufacturer && (
-                                                <p className="text-xs text-slate-500 flex justify-between">
-                                                    <span className="font-medium">Brand:</span>
-                                                    <span className="truncate max-w-[100px]" title={group.manufacturer}>{group.manufacturer}</span>
-                                                </p>
-                                            )}
+                                        <div className="h-28 bg-slate-50 flex items-center justify-center border-b border-slate-50">
+                                            <span className="text-5xl">💊</span>
                                         </div>
 
-                                        <button
-                                            onClick={() => handleBuyClick(group)}
-                                            className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm ${isAvailable
-                                                ? "bg-teal-600 text-white hover:bg-teal-700 hover:shadow-md active:transform active:scale-95"
-                                                : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                                }`}
-                                            disabled={!isAvailable}
-                                        >
-                                            {isAvailable ? "Buy Now" : "Out of Stock"}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </section>
+                                        <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                                            <div>
+                                                <h3 className="font-extrabold text-slate-900 text-sm leading-snug line-clamp-1" title={group.name}>{group.name}</h3>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Generic: {group.genericName || "—"}</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-400 uppercase py-2 border-y border-slate-50">
+                                                <div>
+                                                    <span className="block text-slate-400">Dosage</span>
+                                                    <span className="text-slate-700 font-semibold">{group.dosage || "—"}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-slate-400">Brand</span>
+                                                    <span className="text-slate-700 font-semibold truncate block max-w-[80px]">{group.manufacturer || "—"}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <span className="text-[8px] text-slate-400 block font-bold uppercase">Price</span>
+                                                    <span className="text-lg font-extrabold text-teal-600">${group.price ? Number(group.price).toFixed(2) : "0.00"}</span>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    disabled={!isAvailable}
+                                                    onClick={() => handleBuyClick(group)}
+                                                    className="!px-3.5 !py-2 text-xs"
+                                                >
+                                                    {isAvailable ? "Buy Item" : "Sold Out"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+            </div>
 
             {/* Footer */}
-            <footer className="bg-white border-t border-gray-200 py-12 text-center text-slate-500 text-sm">
+            <footer className="bg-white border-t border-slate-100 py-10 text-center text-slate-400 text-xs font-semibold">
                 <p>&copy; {new Date().getFullYear()} MediLink. All rights reserved.</p>
             </footer>
 

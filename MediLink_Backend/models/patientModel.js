@@ -43,13 +43,14 @@ const patientSchema = new mongoose.Schema({
   gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
   phoneNo: { type: String, required: true, trim: true, index: true },
   address: { type: String, trim: true },
-  bloodType: { 
-    type: String, 
-    enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"], 
-    index: true 
+  bloodType: {
+    type: String,
+    enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+    index: true
   },
-  dateOfBirth: { type: Date, required: true },
+  dateOfBirth: { type: Date },
   emergencyContact: emergencyContactSchema,
+  medicalHistory: { type: String, trim: true },
   dateRegistered: { type: Date, default: Date.now },
   status: { type: String, enum: ["Active", "Inactive", "Deceased"], default: "Active", index: true }
 }, { timestamps: true });

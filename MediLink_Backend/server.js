@@ -5,7 +5,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import mongoose from "mongoose"; // Added for graceful shutdown
-// import "express-async-errors"; // handles rejected promises in routes automatically
 
 import connectDB from "./config/db.js";
 
@@ -18,15 +17,13 @@ import medicineRoutes from "./routes/medicineRoutes.js";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
+import noteRoutes from "./routes/noteRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
-// import staffRoutes from "./routes/staffRoutes.js";
-// import nurseRoutes from "./routes/nurseRoutes.js";
-// import recordRoutes from "./routes/recordRoutes.js";
-// import diagnosisRoutes from "./routes/diagnosisRoutes.js";
-// import roomRoutes from "./routes/roomRoutes.js";
-// import treatRoutes from "./routes/treatRoutes.js";
-// import patientRoomAssignmentRoutes from "./routes/patientRoomAssignmentRoutes.js";
-// import medicinePrescriptionRoutes from "./routes/medicinePrescriptionRoutes.js";
+// Middlewares
+import { errorHandler } from "./middleware/errorMiddleware.js";
+import { authLimiter, apiLimiter } from "./middleware/rateLimitMiddleware.js";
 
 dotenv.config();
 
@@ -41,12 +38,16 @@ app.use(express.json()); // parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // parse form bodies
 app.use(morgan(process.env.NODE_ENV === "production" ? "common" : "dev")); // logging
 
+// Apply general API rate limiting
+app.use("/api/", apiLimiter);
+
 // ----- BASE / HEALTH CHECK -----
 app.get("/", (req, res) => res.send("MediLink Backend Running..."));
 app.get("/health", (req, res) => res.json({ status: "ok", time: new Date().toISOString() }));
 
 // ----- API ROUTES -----
-app.use("/api/auth", authRoutes);
+// Apply specific auth rate limiting to signup/login
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/bills", billRoutes);
@@ -54,7 +55,9 @@ app.use("/api/medicines", medicineRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/appointments", appointmentRoutes);
-
+app.use("/api/notes", noteRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/users", userRoutes);
 
 // ----- 404 handler -----
 app.use((req, res, next) => {
@@ -62,14 +65,8 @@ app.use((req, res, next) => {
 });
 
 // ----- Global error handler -----
-app.use((err, req, res, next) => {
-  console.error(err); // log to console (or better: log file in prod)
-  const status = err.statusCode || 500;
-  res.status(status).json({
-    message: err.message || "Internal Server Error",
-    ...(process.env.NODE_ENV !== "production" && { stack: err.stack })
-  });
-});
+app.use(errorHandler);
+
 
 // ----- START SERVER -----
 const startServer = async () => {
@@ -89,15 +86,15 @@ const startServer = async () => {
       console.log(`\n${signal} received, closing server gracefully...`);
 
       server.close(async () => {
-        console.log("✅ HTTP server closed");
+        console.log(" HTTP server closed");
 
         try {
           // Close database connection
           await mongoose.connection.close();
-          console.log("✅ Database connection closed");
+          console.log(" Database connection closed");
           process.exit(0);
         } catch (err) {
-          console.error("❌ Error during shutdown:", err);
+          console.error(" Error during shutdown:", err);
           process.exit(1);
         }
       });
@@ -115,17 +112,17 @@ const startServer = async () => {
 
     // Handle uncaught errors
     process.on("uncaughtException", (err) => {
-      console.error("💥 Uncaught Exception:", err);
+      console.error(" Uncaught Exception:", err);
       gracefulShutdown("UNCAUGHT_EXCEPTION");
     });
 
     process.on("unhandledRejection", (reason, promise) => {
-      console.error("💥 Unhandled Rejection at:", promise, "reason:", reason);
+      console.error(" Unhandled Rejection at:", promise, "reason:", reason);
       gracefulShutdown("UNHANDLED_REJECTION");
     });
 
   } catch (err) {
-    console.error("❌ Failed to start server:", err.message);
+    console.error(" Failed to start server:", err.message);
     process.exit(1);
   }
 };

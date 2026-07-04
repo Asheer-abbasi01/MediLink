@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import client from "../../api/client";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import { Skeleton } from "../../components/ui/Loader";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -10,19 +13,22 @@ const AdminDashboard = () => {
     medicines: 0,
     payments: 0,
     revenue: 0,
+    todayAppointments: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
   const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
-      const [doctorsRes, patientsRes, billsRes, medicinesRes, paymentsRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/doctors"),
-        axios.get("http://localhost:5000/api/patients"),
-        axios.get("http://localhost:5000/api/bills"),
-        axios.get("http://localhost:5000/api/medicines"),
-        axios.get("http://localhost:5000/api/payments"),
+      const [doctorsRes, patientsRes, billsRes, medicinesRes, paymentsRes, appointmentsRes] = await Promise.all([
+        client.get("/api/doctors"),
+        client.get("/api/patients"),
+        client.get("/api/bills"),
+        client.get("/api/medicines"),
+        client.get("/api/payments"),
+        client.get("/api/appointments"),
       ]);
 
       const doctorsList = doctorsRes.data.doctors || doctorsRes.data || [];
@@ -30,8 +36,21 @@ const AdminDashboard = () => {
       const billsList = billsRes.data || [];
       const medicinesList = medicinesRes.data || [];
       const paymentsList = paymentsRes.data || [];
+      const appointmentsList = appointmentsRes.data.appointments || appointmentsRes.data || [];
 
       const totalRevenue = paymentsList.reduce((sum, p) => sum + Number(p.total || 0), 0);
+
+      // Filter today's appointments
+      const todayStr = new Date().toISOString().split("T")[0];
+      const todayAppts = appointmentsList.filter(appt => {
+        if (!appt.scheduledAt) return false;
+        return appt.scheduledAt.startsWith(todayStr);
+      });
+
+      // Filter upcoming appointments (next 5)
+      const upcoming = appointmentsList
+        .filter(appt => appt.status === 'pending' || appt.status === 'confirmed')
+        .slice(0, 5);
 
       setStats({
         doctors: doctorsList.length,
@@ -40,6 +59,7 @@ const AdminDashboard = () => {
         medicines: medicinesList.length,
         payments: paymentsList.length,
         revenue: totalRevenue,
+        todayAppointments: todayAppts.length,
       });
 
       // Recent activities (last 5 bills)
@@ -50,8 +70,9 @@ const AdminDashboard = () => {
         amount: bill.totalAmount,
         status: bill.status,
       }));
+      
       setRecentActivities(recent);
-
+      setUpcomingAppointments(upcoming);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
@@ -63,174 +84,178 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-80 lg:col-span-2 rounded-2xl" />
+          <Skeleton className="h-80 rounded-2xl" />
         </div>
       </div>
     );
+  }
 
   const quickActions = [
-    { name: "Doctors", path: "/admin/doctors", icon: "👨‍⚕️" },
-    { name: "Patients", path: "/admin/patients", icon: "🏥" },
-    { name: "Bills", path: "/admin/bills", icon: "📄" },
-    { name: "Medicines", path: "/admin/medicines", icon: "💊" },
-    { name: "Payments", path: "/admin/payments", icon: "💳" },
-    { name: "Analytics", path: "/admin/analytics", icon: "📊" },
+    { name: "Doctors", path: "/admin/doctors", icon: "👨‍⚕️", color: "from-teal-500 to-teal-600" },
+    { name: "Patients", path: "/admin/patients", icon: "🏥", color: "from-blue-500 to-blue-600" },
+    { name: "Bills", path: "/admin/bills", icon: "📄", color: "from-purple-500 to-purple-600" },
+    { name: "Medicines", path: "/admin/medicines", icon: "💊", color: "from-pink-500 to-pink-600" },
+    { name: "Payments", path: "/admin/payments", icon: "💳", color: "from-amber-500 to-amber-600" },
+    { name: "Analytics", path: "/admin/analytics", icon: "📊", color: "from-emerald-500 to-emerald-600" },
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
+      <div>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Admin Dashboard</h1>
+        <p className="text-slate-500 text-sm font-medium mt-1">Hospital metrics, active cases, and recent transactions</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* Doctors Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Doctors</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.doctors}</h3>
-              <p className="text-gray-400 text-xs">Active medical staff</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              👨‍⚕️
-            </div>
+      {/* Grid Stats cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card bodyClass="p-6 flex items-center justify-between" hoverEffect>
+          <div className="space-y-1">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Doctors</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{stats.doctors}</h3>
+            <p className="text-slate-400 text-[10px] font-semibold">Active staff</p>
           </div>
-        </div>
+          <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center text-xl font-bold">
+            👨‍⚕️
+          </div>
+        </Card>
 
-        {/* Patients Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Patients</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.patients}</h3>
-              <p className="text-gray-400 text-xs">Registered patients</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              🏥
-            </div>
+        <Card bodyClass="p-6 flex items-center justify-between" hoverEffect>
+          <div className="space-y-1">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Patients</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{stats.patients}</h3>
+            <p className="text-slate-400 text-[10px] font-semibold">Registered clients</p>
           </div>
-        </div>
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl font-bold">
+            🏥
+          </div>
+        </Card>
 
-        {/* Medicines Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Medicines</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.medicines}</h3>
-              <p className="text-gray-400 text-xs">In inventory</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              💊
-            </div>
+        <Card bodyClass="p-6 flex items-center justify-between" hoverEffect>
+          <div className="space-y-1">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Today's Bookings</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">{stats.todayAppointments}</h3>
+            <p className="text-slate-400 text-[10px] font-semibold">Active appointments</p>
           </div>
-        </div>
+          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl font-bold">
+            📅
+          </div>
+        </Card>
 
-        {/* Bills Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Bills</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.bills}</h3>
-              <p className="text-gray-400 text-xs">Generated bills</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              📄
-            </div>
+        <Card bodyClass="p-6 flex items-center justify-between" hoverEffect>
+          <div className="space-y-1">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Revenue</p>
+            <h3 className="text-3xl font-extrabold text-slate-800">${stats.revenue.toLocaleString()}</h3>
+            <p className="text-slate-400 text-[10px] font-semibold">All-time earnings</p>
           </div>
-        </div>
-
-        {/* Payments Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Payments</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">{stats.payments}</h3>
-              <p className="text-gray-400 text-xs">Processed payments</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              💳
-            </div>
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold">
+            💰
           </div>
-        </div>
-
-        {/* Revenue Card - Special emerald green for success metric */}
-        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 hover:shadow-xl transition-all hover:-translate-y-1">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-gray-500 text-sm font-medium mb-3">Total Revenue</p>
-              <h3 className="text-4xl font-bold text-gray-900 mb-2">${stats.revenue.toFixed(2)}</h3>
-              <p className="text-gray-400 text-xs">All time revenue</p>
-            </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center text-2xl shadow-lg">
-              💰
-            </div>
-          </div>
-        </div>
+        </Card>
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <Card title="Quick Services Access" subtitle="Navigate instantly to administrative settings panels">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {quickActions.map((action) => (
             <button
               key={action.path}
               onClick={() => navigate(action.path)}
-              className="bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl p-6 hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center gap-3"
+              className="group flex flex-col items-center justify-center gap-3 p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:border-teal-500 hover:shadow-lg hover:shadow-teal-600/5 transition-all duration-200"
             >
-              <span className="text-4xl">{action.icon}</span>
-              <span className="font-semibold text-sm">{action.name}</span>
+              <div className="w-12 h-12 bg-slate-100 group-hover:bg-teal-50 group-hover:text-teal-600 rounded-xl flex items-center justify-center text-2xl transition-all duration-200">
+                {action.icon}
+              </div>
+              <span className="font-semibold text-slate-700 group-hover:text-teal-700 text-xs transition-colors duration-200">
+                {action.name}
+              </span>
             </button>
           ))}
         </div>
-      </div>
+      </Card>
 
-      {/* Recent Activity */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-800">Recent Activity</h2>
+      {/* Main sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Upcoming appointments list */}
+        <div className="lg:col-span-2">
+          <Card title="Upcoming Bookings" subtitle="List of pending schedule logs to allocate">
+            {upcomingAppointments.length > 0 ? (
+              <div className="divide-y divide-slate-50">
+                {upcomingAppointments.map((appt) => (
+                  <div key={appt._id} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-lg">
+                        📅
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-800 text-sm">
+                          {appt.doctor?.name || "Doctor"}
+                        </p>
+                        <p className="text-slate-400 text-xs font-semibold">
+                          Scheduled: {appt.scheduledAt ? new Date(appt.scheduledAt).toLocaleDateString() : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant={appt.status === 'confirmed' ? 'success' : 'warning'}>
+                      {appt.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <span className="text-3xl block mb-2">📂</span>
+                <p className="text-sm font-semibold">No upcoming appointments found</p>
+              </div>
+            )}
+          </Card>
         </div>
-        <div className="p-6">
-          {recentActivities.length > 0 ? (
-            <div className="space-y-4">
-              {recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-2xl">
-                      📄
+
+        {/* Recent bills activities */}
+        <div>
+          <Card title="Recent Activity" subtitle="Real-time log of invoice updates">
+            {recentActivities.length > 0 ? (
+              <div className="space-y-4">
+                {recentActivities.map((activity, index) => (
+                  <div key={index} className="flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-2xl transition-all">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📄</span>
+                      <div>
+                        <p className="font-bold text-slate-800 text-xs">Invoice #{activity.id}</p>
+                        <p className="text-slate-400 text-[10px] font-semibold">Client: {activity.patient}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{activity.type} #{activity.id}</p>
-                      <p className="text-sm text-gray-600">Patient: {activity.patient}</p>
+                    <div className="text-right space-y-0.5">
+                      <p className="font-extrabold text-teal-600 text-xs">${activity.amount}</p>
+                      <Badge variant={activity.status === 'Paid' ? 'success' : 'warning'} size="xs">
+                        {activity.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-teal-600">${activity.amount}</p>
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${activity.status === 'Paid' ? 'bg-green-100 text-green-800' :
-                      activity.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                      {activity.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📊</div>
-              <p className="text-gray-500">No recent activity</p>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <span className="text-3xl block mb-2">📊</span>
+                <p className="text-sm font-semibold">No recent activity logs</p>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </div>

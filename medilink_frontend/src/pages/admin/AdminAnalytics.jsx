@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
+import client from "../../api/client";
 import {
     BarChart,
     Bar,
@@ -14,9 +14,10 @@ import {
     Tooltip,
     Legend,
     ResponsiveContainer,
-    AreaChart,
-    Area,
 } from "recharts";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
+import { Skeleton } from "../../components/ui/Loader";
 
 const AdminAnalytics = () => {
     const [loading, setLoading] = useState(true);
@@ -33,11 +34,6 @@ const AdminAnalytics = () => {
     const [billStatusData, setBillStatusData] = useState([]);
     const [specialtyData, setSpecialtyData] = useState([]);
     const [lowStockMedicines, setLowStockMedicines] = useState([]);
-    const [recentPayments, setRecentPayments] = useState([]);
-    const [topDoctors, setTopDoctors] = useState([]);
-    const [dailyRevenueData, setDailyRevenueData] = useState([]);
-    const [inventoryStatus, setInventoryStatus] = useState([]);
-    const [patientGrowth, setPatientGrowth] = useState([]);
 
     useEffect(() => {
         fetchAnalyticsData();
@@ -47,11 +43,11 @@ const AdminAnalytics = () => {
         try {
             // Fetch all data
             const [doctors, patients, medicines, bills, payments] = await Promise.all([
-                axios.get("http://localhost:5000/api/doctors"),
-                axios.get("http://localhost:5000/api/patients"),
-                axios.get("http://localhost:5000/api/medicines"),
-                axios.get("http://localhost:5000/api/bills"),
-                axios.get("http://localhost:5000/api/payments"),
+                client.get("/api/doctors"),
+                client.get("/api/patients"),
+                client.get("/api/medicines"),
+                client.get("/api/bills"),
+                client.get("/api/payments"),
             ]);
 
             const doctorsList = doctors.data.doctors || doctors.data || [];
@@ -116,74 +112,13 @@ const AdminAnalytics = () => {
 
             // Low Stock Medicines (quantity < 10)
             const lowStock = medicinesList
-                .filter((m) => m.quantity < 10)
-                .sort((a, b) => a.quantity - b.quantity)
+                .filter((m) => {
+                  const qty = m.stock !== undefined ? m.stock : m.quantity || 0;
+                  return qty < 10;
+                })
+                .sort((a, b) => (a.stock || a.quantity || 0) - (b.stock || b.quantity || 0))
                 .slice(0, 10);
             setLowStockMedicines(lowStock);
-
-            // Recent Payments (last 7)
-            const recentPaymentsData = paymentsList
-                .sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate))
-                .slice(0, 7);
-            setRecentPayments(recentPaymentsData);
-
-            // Top Performing Doctors by Revenue
-            const doctorRevenue = {};
-            billsList.forEach((bill) => {
-                if (bill.doctorId) {
-                    const doctor = doctorsList.find((d) => d._id === bill.doctorId);
-                    if (doctor) {
-                        const doctorName = doctor.name || 'Unknown';
-                        const payment = paymentsList.find((p) => p.billId === bill._id);
-                        const revenue = payment ? Number(payment.total || 0) : 0;
-                        doctorRevenue[doctorName] = (doctorRevenue[doctorName] || 0) + revenue;
-                    }
-                }
-            });
-            const topDoctorsData = Object.entries(doctorRevenue)
-                .map(([name, revenue]) => ({ name, revenue }))
-                .sort((a, b) => b.revenue - a.revenue)
-                .slice(0, 5);
-            setTopDoctors(topDoctorsData);
-
-            // Daily Revenue Data (last 14 days)
-            const dailyRevenue = [];
-            for (let i = 13; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - i);
-                const dateStr = date.toISOString().split('T')[0];
-                const dayPayments = paymentsList.filter((p) => {
-                    if (!p.paymentDate) return false;
-                    const paymentDateStr = new Date(p.paymentDate).toISOString().split('T')[0];
-                    return paymentDateStr === dateStr;
-                });
-                const revenue = dayPayments.reduce((sum, p) => sum + Number(p.total || 0), 0);
-                const dayName = date.toLocaleDateString('default', { month: 'short', day: 'numeric' });
-                dailyRevenue.push({ date: dayName, revenue });
-            }
-            setDailyRevenueData(dailyRevenue);
-
-            // Medicine Inventory Status
-            const critical = medicinesList.filter((m) => m.quantity < 10).length;
-            const low = medicinesList.filter((m) => m.quantity >= 10 && m.quantity < 50).length;
-            const adequate = medicinesList.filter((m) => m.quantity >= 50 && m.quantity < 100).length;
-            const wellStocked = medicinesList.filter((m) => m.quantity >= 100).length;
-            setInventoryStatus([
-                { category: 'Critical', count: critical },
-                { category: 'Low', count: low },
-                { category: 'Adequate', count: adequate },
-                { category: 'Well-Stocked', count: wellStocked },
-            ]);
-
-            // Patient Growth (monthly registration trend)
-            const patientGrowthData = months.map((month, index) => {
-                const monthPatients = patientsList.filter((p) => {
-                    if (!p.createdAt) return false;
-                    return new Date(p.createdAt).getMonth() === index;
-                });
-                return { month, patients: monthPatients.length };
-            });
-            setPatientGrowth(patientGrowthData);
 
             setLoading(false);
         } catch (err) {
@@ -194,109 +129,80 @@ const AdminAnalytics = () => {
 
     const COLORS = ["#0d9488", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 
-    if (loading)
+    if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <div className="inline-block w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-600">Loading analytics...</p>
+            <div className="space-y-6">
+                <Skeleton className="h-8 w-48 animate-pulse" />
+                <Skeleton className="h-4 w-72 animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Skeleton className="h-32 rounded-2xl" />
+                    <Skeleton className="h-32 rounded-2xl" />
+                    <Skeleton className="h-32 rounded-2xl" />
                 </div>
             </div>
         );
+    }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
-            <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">Analytics Dashboard</h2>
-                <p className="text-gray-600">Comprehensive insights and statistics</p>
+        <div className="space-y-8 font-sans">
+            {/* Header */}
+            <div>
+                <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Analytics Insights</h2>
+                <p className="text-slate-500 text-sm font-medium mt-1">Real-time statistics of patient logs, drug stocks, and financial collections</p>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Card bodyClass="p-6 bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl" hoverEffect>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-teal-100 text-sm font-medium">Total Doctors</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats.totalDoctors}</h3>
+                            <p className="text-teal-100 text-xs font-bold uppercase tracking-wider">Total Doctors</p>
+                            <h3 className="text-4xl font-extrabold mt-2 tracking-tight">{stats.totalDoctors}</h3>
                         </div>
-                        <div className="text-5xl opacity-20">ðŸ‘¨â€âš•ï¸</div>
+                        <span className="text-5xl opacity-20">👨‍⚕️</span>
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+                <Card bodyClass="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl" hoverEffect>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-blue-100 text-sm font-medium">Total Patients</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats.totalPatients}</h3>
+                            <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Total Patients</p>
+                            <h3 className="text-4xl font-extrabold mt-2 tracking-tight">{stats.totalPatients}</h3>
                         </div>
-                        <div className="text-5xl opacity-20">ðŸ¥</div>
+                        <span className="text-5xl opacity-20">🏥</span>
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+                <Card bodyClass="p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl" hoverEffect>
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-purple-100 text-sm font-medium">Total Medicines</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats.totalMedicines}</h3>
+                            <p className="text-emerald-100 text-xs font-bold uppercase tracking-wider">Collected Revenue</p>
+                            <h3 className="text-4xl font-extrabold mt-2 tracking-tight">${stats.totalRevenue.toFixed(2)}</h3>
                         </div>
-                        <div className="text-5xl opacity-20">ðŸ’Š</div>
+                        <span className="text-5xl opacity-20">💰</span>
                     </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-pink-500 to-pink-600 rounded-2xl p-6 text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-pink-100 text-sm font-medium">Total Bills</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats.totalBills}</h3>
-                        </div>
-                        <div className="text-5xl opacity-20">ðŸ“„</div>
-                    </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-orange-100 text-sm font-medium">Total Payments</p>
-                            <h3 className="text-4xl font-bold mt-2">{stats.totalPayments}</h3>
-                        </div>
-                        <div className="text-5xl opacity-20">ðŸ’³</div>
-                    </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-                            <h3 className="text-4xl font-bold mt-2">${stats.totalRevenue.toFixed(2)}</h3>
-                        </div>
-                        <div className="text-5xl opacity-20">ðŸ’°</div>
-                    </div>
-                </div>
+                </Card>
             </div>
 
-            {/* Charts Row 1 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Monthly Revenue Chart */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Monthly Revenue Trend</h3>
+            {/* Charts Rows */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Monthly revenue */}
+                <Card title="Monthly Revenue Performance" subtitle="Collection and counts tracking across standard calendar months">
                     <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="month" stroke="#6b7280" />
-                            <YAxis stroke="#6b7280" />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                            />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="month" stroke="#64748b" />
+                            <YAxis stroke="#64748b" />
+                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }} />
                             <Legend />
-                            <Line type="monotone" dataKey="revenue" stroke="#0d9488" strokeWidth={3} name="Revenue ($)" />
-                            <Line type="monotone" dataKey="payments" stroke="#3b82f6" strokeWidth={3} name="Payments" />
+                            <Line type="monotone" dataKey="revenue" stroke="#0d9488" strokeWidth={3} name="Earnings ($)" />
+                            <Line type="monotone" dataKey="payments" stroke="#3b82f6" strokeWidth={3} name="Payments Count" />
                         </LineChart>
                     </ResponsiveContainer>
-                </div>
+                </Card>
 
-                {/* Payment Method Distribution */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Payment Methods Distribution</h3>
+                {/* Method distribution */}
+                <Card title="Payment Mode Distribution" subtitle="Proportion of cash, credit, or digital checkout modes">
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                             <Pie
@@ -305,7 +211,7 @@ const AdminAnalytics = () => {
                                 cy="50%"
                                 labelLine={false}
                                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={100}
+                                outerRadius={80}
                                 fill="#8884d8"
                                 dataKey="value"
                             >
@@ -316,195 +222,80 @@ const AdminAnalytics = () => {
                             <Tooltip />
                         </PieChart>
                     </ResponsiveContainer>
-                </div>
+                </Card>
             </div>
 
             {/* Charts Row 2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Bill Status Distribution */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Bill Status Overview</h3>
+                {/* Invoices status */}
+                <Card title="Invoice Clearances" subtitle="Unpaid vs paid invoice distributions">
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={billStatusData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis dataKey="name" stroke="#6b7280" />
-                            <YAxis stroke="#6b7280" />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                            />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="name" stroke="#64748b" />
+                            <YAxis stroke="#64748b" />
+                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }} />
                             <Legend />
-                            <Bar dataKey="value" fill="#3b82f6" name="Count" radius={[8, 8, 0, 0]} />
+                            <Bar dataKey="value" fill="#3b82f6" name="Invoices Count" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
+                </Card>
 
-                {/* Doctor Specialty Distribution */}
-                <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                    <h3 className="text-xl font-bold text-gray-800 mb-6">Doctor Specialties</h3>
+                {/* Doctor specialty distribution */}
+                <Card title="Specialist Allocations" subtitle="Breakdown of registered doctor fields">
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={specialtyData} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis type="number" stroke="#6b7280" />
-                            <YAxis dataKey="name" type="category" stroke="#6b7280" width={100} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }}
-                            />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis type="number" stroke="#64748b" />
+                            <YAxis dataKey="name" type="category" stroke="#64748b" width={80} />
+                            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0" }} />
                             <Legend />
-                            <Bar dataKey="value" fill="#0d9488" name="Doctors" radius={[0, 8, 8, 0]} />
+                            <Bar dataKey="value" fill="#0d9488" name="Doctors Assigned" radius={[0, 6, 6, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
-                </div>
+                </Card>
             </div>
 
-            {/* NEW ANALYTICS SECTIONS */}
-
-            {/* Low Stock Medicines Alert */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-800">Low Stock Alert</h3>
-                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">{lowStockMedicines.length} Items</span>
-                </div>
+            {/* Low stock medicines alarm */}
+            <Card title="Inventory Re-Order List" subtitle="List of critical medicines matching critical threshold (<10 units)">
                 {lowStockMedicines.length > 0 ? (
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b-2 border-gray-200">
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Medicine Name</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Current Stock</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Expiry Date</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Status</th>
+                        <table className="w-full text-sm text-left text-slate-500">
+                            <thead className="bg-slate-50/50 text-slate-700 uppercase text-xs border-b border-slate-100">
+                                <tr>
+                                    <th className="py-3.5 px-6 font-bold">Medicine Name</th>
+                                    <th className="py-3.5 px-6 font-bold text-center">Remaining Stock</th>
+                                    <th className="py-3.5 px-6 font-bold text-center">Status Alert</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {lowStockMedicines.map((medicine, index) => (
-                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                                        <td className="py-3 px-4 font-medium text-gray-800">{medicine.name}</td>
-                                        <td className="py-3 px-4 text-center"><span className="px-3 py-1 bg-red-50 text-red-600 rounded-full font-semibold">{medicine.quantity}</span></td>
-                                        <td className="py-3 px-4 text-center text-gray-600">{medicine.expiryDate ? new Date(medicine.expiryDate).toLocaleDateString() : "N/A"}</td>
-                                        <td className="py-3 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-bold ${medicine.quantity < 5 ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>{medicine.quantity < 5 ? "CRITICAL" : "LOW"}</span></td>
-                                    </tr>
-                                ))}
+                            <tbody className="divide-y divide-slate-50">
+                                {lowStockMedicines.map((med, idx) => {
+                                    const count = med.stock !== undefined ? med.stock : med.quantity || 0;
+                                    return (
+                                        <tr key={idx} className="hover:bg-slate-50/50">
+                                            <td className="py-3.5 px-6 font-semibold text-slate-900">{med.name}</td>
+                                            <td className="py-3.5 px-6 text-center">
+                                                <Badge variant="danger" size="xs">
+                                                    {count} units
+                                                </Badge>
+                                            </td>
+                                            <td className="py-3.5 px-6 text-center">
+                                                <span className="text-xs font-bold text-rose-600">CRITICAL LIMIT ⚠️</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-gray-500"><p className="text-lg">All medicines are well-stocked!</p></div>
-                )}
-            </div>
-
-            {/* Recent Payment Activity */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-gray-800">Recent Payment Activity</h3>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">Real-time</span>
-                </div>
-                {recentPayments.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b-2 border-gray-200">
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Payment ID</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Amount</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Method</th>
-                                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {recentPayments.map((payment, index) => (
-                                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                                        <td className="py-3 px-4 font-mono text-sm text-gray-600">{payment._id?.substring(0, 8)}...</td>
-                                        <td className="py-3 px-4 font-bold text-green-600">${Number(payment.total || 0).toFixed(2)}</td>
-                                        <td className="py-3 px-4"><span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">{payment.paymentMethod || "N/A"}</span></td>
-                                        <td className="py-3 px-4 text-gray-600">{payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "N/A"}</td>
-                                        <td className="py-3 px-4 text-center"><span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">PAID</span></td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="text-center py-6 text-slate-400 font-semibold">
+                        🎉 All medicines are adequately stocked!
                     </div>
-                ) : (
-                    <div className="text-center py-8 text-gray-500"><p className="text-lg">No recent payments found</p></div>
                 )}
-            </div>
-
-            {/* Top Performing Doctors */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Top Performing Doctors by Revenue</h3>
-                {topDoctors.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={topDoctors} layout="horizontal">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                            <XAxis type="number" stroke="#6b7280" />
-                            <YAxis dataKey="name" type="category" stroke="#6b7280" width={120} />
-                            <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} formatter={(value) => `$${value.toFixed(2)}`} />
-                            <Legend />
-                            <Bar dataKey="revenue" fill="#8b5cf6" name="Revenue ($)" radius={[0, 8, 8, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                ) : (
-                    <div className="text-center py-8 text-gray-500"><p className="text-lg">No revenue data available</p></div>
-                )}
-            </div>
-
-            {/* Daily Revenue Trend */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Daily Revenue Trend (Last 14 Days)</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={dailyRevenueData}>
-                        <defs>
-                            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#0d9488" stopOpacity={0.8} />
-                                <stop offset="95%" stopColor="#0d9488" stopOpacity={0.1} />
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="date" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} formatter={(value) => `$${value.toFixed(2)}`} />
-                        <Legend />
-                        <Area type="monotone" dataKey="revenue" stroke="#0d9488" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue ($)" strokeWidth={2} />
-                    </AreaChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* Medicine Inventory Status */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Medicine Inventory Status</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={inventoryStatus}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="category" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
-                        <Legend />
-                        <Bar dataKey="count" name="Number of Medicines" radius={[8, 8, 0, 0]}>
-                            {inventoryStatus.map((entry, index) => {
-                                const colors = { Critical: "#ef4444", Low: "#f59e0b", Adequate: "#3b82f6", "Well-Stocked": "#10b981" };
-                                return <Cell key={`cell-${index}`} fill={colors[entry.category] || "#6b7280"} />;
-                            })}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-
-            {/* Patient Growth Trend */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Patient Growth Trend</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={patientGrowth}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="month" stroke="#6b7280" />
-                        <YAxis stroke="#6b7280" />
-                        <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
-                        <Legend />
-                        <Line type="monotone" dataKey="patients" stroke="#ec4899" strokeWidth={3} name="New Patients" dot={{ fill: "#ec4899", r: 5 }} activeDot={{ r: 7 }} />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
+            </Card>
         </div>
     );
 };
 
 export default AdminAnalytics;
-

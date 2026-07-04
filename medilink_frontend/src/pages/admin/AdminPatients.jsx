@@ -1,6 +1,12 @@
-// src/pages/admin/AdminPatients.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import client from "../../api/client";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
+import Table from "../../components/ui/Table";
+import Badge from "../../components/ui/Badge";
+import { TableSkeleton } from "../../components/ui/Loader";
+import Toast from "../../components/ui/Toast";
 
 const AdminPatients = () => {
   const [patients, setPatients] = useState([]);
@@ -15,14 +21,21 @@ const AdminPatients = () => {
     medicalHistory: "",
   });
   const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
   const fetchPatients = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/patients");
+      const res = await client.get("/api/patients");
       setPatients(res.data || []);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching patients:", err);
+      showToast("Failed to fetch patients list", "error");
       setLoading(false);
     }
   };
@@ -37,21 +50,24 @@ const AdminPatients = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
     try {
       if (editingId) {
-        const res = await axios.put(`http://localhost:5000/api/patients/${editingId}`, formData);
+        const res = await client.put(`/api/patients/${editingId}`, formData);
         setPatients((prev) => prev.map((p) => (p._id === editingId ? res.data : p)));
-        alert("Patient updated successfully");
+        showToast("Patient records updated successfully");
       } else {
-        const res = await axios.post("http://localhost:5000/api/patients", formData);
+        const res = await client.post("/api/patients", formData);
         setPatients((prev) => [...prev, res.data]);
-        alert("Patient added successfully");
+        showToast("Patient profile registered successfully");
       }
       setFormData({ patientId: "", name: "", age: "", gender: "", contact: "", address: "", medicalHistory: "" });
       setEditingId(null);
     } catch (err) {
       console.error("Error saving patient:", err);
-      alert("Error saving patient");
+      showToast("Error processing request", "error");
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -70,92 +86,79 @@ const AdminPatients = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this patient?")) {
+    if (window.confirm("Are you sure you want to delete this patient profile?")) {
       try {
-        await axios.delete(`http://localhost:5000/api/patients/${id}`);
+        await client.delete(`/api/patients/${id}`);
         setPatients((prev) => prev.filter((p) => p._id !== id));
-        alert("Patient deleted successfully");
+        showToast("Patient profile deleted successfully");
       } catch (err) {
         console.error("Error deleting patient:", err);
-        alert("Error deleting patient");
+        showToast("Error deleting patient profile", "error");
       }
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Loading patients...</p>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <TableSkeleton rows={6} cols={5} />;
+  }
+
+  const tableHeaders = ["Patient Info", "Age & Gender", "Contact Details", "Medical Address", "Actions"];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Patients Management</h2>
-        <p className="text-gray-600">Manage patient records and medical history</p>
+    <div className="space-y-8">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Patients Directory</h2>
+        <p className="text-slate-500 text-sm font-medium mt-1">Add, update, and manage hospital patient database logs</p>
       </div>
 
       {/* Patient Form */}
-      <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
-        <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          {editingId ? (
-            <>
-              <span className="text-blue-600">✏️</span> Edit Patient
-            </>
-          ) : (
-            <>
-              <span className="text-teal-600">➕</span> Add New Patient
-            </>
-          )}
-        </h3>
-
+      <Card 
+        title={editingId ? "Edit Patient Records" : "Register New Patient"}
+        subtitle="Ensure fields marked with (*) are filled accurately"
+      >
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Patient ID *</label>
-              <input
-                name="patientId"
-                value={formData.patientId}
-                onChange={handleChange}
-                placeholder="e.g., PAT001"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name *</label>
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="John Doe"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Age *</label>
-              <input
-                name="age"
-                type="number"
-                value={formData.age}
-                onChange={handleChange}
-                placeholder="30"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Gender *</label>
+            <Input
+              label="Patient ID"
+              name="patientId"
+              value={formData.patientId}
+              onChange={handleChange}
+              placeholder="e.g., PAT001"
+              required
+            />
+            <Input
+              label="Full Name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              required
+            />
+            <Input
+              label="Age"
+              name="age"
+              type="number"
+              value={formData.age}
+              onChange={handleChange}
+              placeholder="30"
+              required
+            />
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-sm font-semibold text-slate-700">Gender *</label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-200"
                 required
               >
                 <option value="">Select Gender</option>
@@ -164,128 +167,101 @@ const AdminPatients = () => {
                 <option value="Other">Other</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Contact</label>
-              <input
-                name="contact"
-                value={formData.contact}
-                onChange={handleChange}
-                placeholder="+92 300 1234567"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
-              <input
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                placeholder="123 Main St, City"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-              />
-            </div>
-            <div className="md:col-span-2 lg:col-span-3">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Medical History</label>
+            <Input
+              label="Contact Number"
+              name="contact"
+              value={formData.contact}
+              onChange={handleChange}
+              placeholder="+92 300 1234567"
+            />
+            <Input
+              label="Permanent Address"
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              placeholder="123 Main St, City"
+            />
+            <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-slate-700">Medical History Summary</label>
               <textarea
                 name="medicalHistory"
                 value={formData.medicalHistory}
                 onChange={handleChange}
-                placeholder="Enter medical history..."
+                placeholder="Allergies, chronic conditions, or ongoing treatments..."
                 rows="3"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-200"
               />
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
+          <div className="flex items-center gap-3">
+            <Button
               type="submit"
-              className="px-8 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              loading={formLoading}
             >
-              {editingId ? "Update Patient" : "Add Patient"}
-            </button>
+              {editingId ? "Update Profile" : "Register Patient"}
+            </Button>
             {editingId && (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setFormData({ patientId: "", name: "", age: "", gender: "", contact: "", address: "", medicalHistory: "" });
                 }}
-                className="px-8 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
               >
-                Cancel
-              </button>
+                Cancel Edit
+              </Button>
             )}
           </div>
         </form>
-      </div>
+      </Card>
 
-      {/* Patients List */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800">All Patients ({patients.length})</h3>
-        </div>
-
-        {patients.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Patient Info</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Age & Gender</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Address</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {patients.map((patient) => (
-                  <tr key={patient._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-semibold text-gray-900">{patient.name}</div>
-                        <div className="text-sm text-gray-500">ID: {patient.patientId}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{patient.age} years</div>
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${patient.gender === 'Male' ? 'bg-blue-100 text-blue-800' :
-                          patient.gender === 'Female' ? 'bg-pink-100 text-pink-800' :
-                            'bg-purple-100 text-purple-800'
-                        }`}>
-                        {patient.gender}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{patient.contact || "N/A"}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{patient.address || "N/A"}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(patient)}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(patient._id)}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <div className="text-6xl mb-4">🏥</div>
-            <p className="text-gray-500 text-lg">No patients found. Add your first patient above!</p>
-          </div>
-        )}
-      </div>
+      {/* Patients Table */}
+      <Card title="Patient List" subtitle="List of registered patient records (sortable by search queries)">
+        <Table
+          headers={tableHeaders}
+          data={patients}
+          searchableKey="name"
+          searchPlaceholder="Filter patients by name..."
+          emptyMessage="No patient records found in directory"
+          renderRow={(patient) => (
+            <tr key={patient._id} className="hover:bg-slate-50/50 transition-colors">
+              <td className="px-6 py-4 font-semibold text-slate-900">
+                <div>{patient.name}</div>
+                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">ID: {patient.patientId}</div>
+              </td>
+              <td className="px-6 py-4">
+                <div className="text-slate-700 font-medium text-xs">{patient.age} years</div>
+                <Badge variant={patient.gender === 'Male' ? 'info' : 'danger'} size="xs" className="mt-1">
+                  {patient.gender}
+                </Badge>
+              </td>
+              <td className="px-6 py-4 text-xs font-semibold text-slate-600">{patient.contact || "—"}</td>
+              <td className="px-6 py-4 text-xs text-slate-500 truncate max-w-[180px]">{patient.address || "—"}</td>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                    onClick={() => handleEdit(patient)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    onClick={() => handleDelete(patient._id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          )}
+        />
+      </Card>
     </div>
   );
 };

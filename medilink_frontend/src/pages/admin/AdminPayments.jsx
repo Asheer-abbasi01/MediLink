@@ -1,7 +1,13 @@
-// src/pages/admin/AdminPayments.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import client from "../../api/client";
 import { useNavigate } from "react-router-dom";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
+import Table from "../../components/ui/Table";
+import Badge from "../../components/ui/Badge";
+import { TableSkeleton } from "../../components/ui/Loader";
+import Toast from "../../components/ui/Toast";
 
 const AdminPayments = () => {
   const navigate = useNavigate();
@@ -17,14 +23,21 @@ const AdminPayments = () => {
     paymentDate: "",
   });
   const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
 
   const fetchPayments = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/payments");
+      const res = await client.get("/api/payments");
       setPayments(res.data || []);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching payments:", err);
+      showToast("Error retrieving payment logs", "error");
       setLoading(false);
     }
   };
@@ -36,15 +49,21 @@ const AdminPayments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormLoading(true);
+    // Cast total to number
+    const payload = {
+      ...formData,
+      total: Number(formData.total)
+    };
     try {
       if (editingId) {
-        const res = await axios.put(`http://localhost:5000/api/payments/${editingId}`, formData);
+        const res = await client.put(`/api/payments/${editingId}`, payload);
         setPayments((prev) => prev.map((p) => (p._id === editingId ? res.data : p)));
-        alert("Payment updated successfully");
+        showToast("Payment records updated successfully");
       } else {
-        const res = await axios.post("http://localhost:5000/api/payments", formData);
+        const res = await client.post("/api/payments", payload);
         setPayments((prev) => [...prev, res.data]);
-        alert("Payment added successfully");
+        showToast("Payment log created successfully");
       }
       setFormData({
         paymentId: "",
@@ -58,7 +77,9 @@ const AdminPayments = () => {
       setEditingId(null);
     } catch (err) {
       console.error("Error saving payment:", err);
-      alert("Error saving payment");
+      showToast("Error saving payment", "error");
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -77,126 +98,97 @@ const AdminPayments = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this payment?")) {
+    if (window.confirm("Are you sure you want to delete this payment record?")) {
       try {
-        await axios.delete(`http://localhost:5000/api/payments/${id}`);
+        await client.delete(`/api/payments/${id}`);
         setPayments((prev) => prev.filter((p) => p._id !== id));
-        alert("Payment deleted successfully");
+        showToast("Payment record deleted successfully");
       } catch (err) {
         console.error("Error deleting payment:", err);
-        alert("Error deleting payment");
+        showToast("Error deleting payment record", "error");
       }
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600">Loading payments...</p>
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <TableSkeleton rows={5} cols={6} />;
+  }
+
+  const tableHeaders = ["Payment ID", "Associated IDs", "Amount Collected", "Method", "Status", "Date", "Actions"];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header with prominent New Payment button */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Payments Management</h2>
-            <p className="text-gray-600">Track and manage payment transactions</p>
-          </div>
-          <button
-            onClick={() => navigate("/admin/payments/new")}
-            className="px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center gap-3 justify-center"
-          >
-            <span className="text-2xl">💳</span>
-            <span>New Payment Transaction</span>
-            <span className="text-xl">→</span>
-          </button>
-        </div>
+    <div className="space-y-8 font-sans">
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
-        {/* Info Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <span className="text-2xl">ℹ️</span>
-          <div>
-            <p className="text-blue-800 font-semibold">MongoDB Transaction Processing</p>
-            <p className="text-blue-600 text-sm">Click "New Payment Transaction" to process payments with full ACID compliance and real-time step visualization.</p>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Payments Log</h2>
+          <p className="text-slate-500 text-sm font-medium mt-1">Review verified hospital transaction ledgers and process invoices</p>
         </div>
+        <Button
+          onClick={() => navigate("/admin/payments/new")}
+          className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/10 flex items-center gap-2"
+        >
+          <span>💳</span>
+          <span>New ACID Checkout</span>
+        </Button>
       </div>
 
       {/* Payment Form */}
-      <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
-        <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-          {editingId ? (
-            <>
-              <span className="text-blue-600">✏️</span> Edit Payment
-            </>
-          ) : (
-            <>
-              <span className="text-teal-600">➕</span> Add New Payment
-            </>
-          )}
-        </h3>
-
+      <Card 
+        title={editingId ? "Edit Payment Record" : "Add Payment Log"}
+        subtitle="Note: Use 'New ACID Checkout' button for full ACID transaction workflows"
+      >
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Payment ID *</label>
-              <input
-                name="paymentId"
-                value={formData.paymentId}
-                onChange={handleChange}
-                placeholder="e.g., PAY001"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">User ID *</label>
-              <input
-                name="userId"
-                value={formData.userId}
-                onChange={handleChange}
-                placeholder="e.g., USR001"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Bill ID *</label>
-              <input
-                name="billId"
-                value={formData.billId}
-                onChange={handleChange}
-                placeholder="e.g., BILL001"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Total Amount *</label>
-              <input
-                name="total"
-                type="number"
-                step="0.01"
-                value={formData.total}
-                onChange={handleChange}
-                placeholder="1000.00"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Method *</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Input
+              label="Payment ID"
+              name="paymentId"
+              value={formData.paymentId}
+              onChange={handleChange}
+              placeholder="e.g., PAY001"
+              required
+            />
+            <Input
+              label="User ID"
+              name="userId"
+              value={formData.userId}
+              onChange={handleChange}
+              placeholder="e.g., USR001"
+              required
+            />
+            <Input
+              label="Bill ID"
+              name="billId"
+              value={formData.billId}
+              onChange={handleChange}
+              placeholder="e.g., BILL001"
+              required
+            />
+            <Input
+              label="Total Amount ($)"
+              name="total"
+              type="number"
+              step="0.01"
+              value={formData.total}
+              onChange={handleChange}
+              placeholder="250.00"
+              required
+            />
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-sm font-semibold text-slate-700">Payment Method *</label>
               <select
                 name="paymentMethod"
                 value={formData.paymentMethod}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-200"
                 required
               >
                 <option value="">Select Method</option>
@@ -205,13 +197,13 @@ const AdminPayments = () => {
                 <option value="Online">Online</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Status *</label>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-sm font-semibold text-slate-700">Status *</label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all duration-200"
                 required
               >
                 <option value="">Select Status</option>
@@ -220,121 +212,90 @@ const AdminPayments = () => {
                 <option value="Failed">Failed</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Date *</label>
-              <input
-                name="paymentDate"
-                type="date"
-                value={formData.paymentDate}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
+            <Input
+              label="Payment Date"
+              name="paymentDate"
+              type="date"
+              value={formData.paymentDate}
+              onChange={handleChange}
+              required
+            />
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              className="px-8 py-3 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-            >
-              {editingId ? "Update Payment" : "Add Payment"}
-            </button>
+          <div className="flex items-center gap-3">
+            <Button type="submit" loading={formLoading}>
+              {editingId ? "Update Log" : "Add Payment Log"}
+            </Button>
             {editingId && (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setEditingId(null);
                   setFormData({ paymentId: "", userId: "", billId: "", total: "", paymentMethod: "", status: "", paymentDate: "" });
                 }}
-                className="px-8 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all"
               >
                 Cancel
-              </button>
+              </Button>
             )}
           </div>
         </form>
-      </div>
+      </Card>
 
-      {/* Payments List */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800">All Payments ({payments.length})</h3>
-        </div>
-
-        {payments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Payment Info</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Method</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.map((payment) => (
-                  <tr key={payment._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-semibold text-gray-900">ID: {payment.paymentId}</div>
-                        <div className="text-sm text-gray-500">User: {payment.userId}</div>
-                        <div className="text-sm text-gray-500">Bill: {payment.billId}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-lg font-bold text-teal-600">${payment.total}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${payment.paymentMethod === 'Cash' ? 'bg-green-100 text-green-800' :
-                        payment.paymentMethod === 'Card' ? 'bg-blue-100 text-blue-800' :
-                          'bg-purple-100 text-purple-800'
-                        }`}>
-                        {payment.paymentMethod}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${payment.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                        payment.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "N/A"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(payment)}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(payment._id)}
-                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <div className="text-6xl mb-4">💳</div>
-            <p className="text-gray-500 text-lg">No payments found. Add your first payment above!</p>
-          </div>
-        )}
-      </div>
+      {/* Payments Table */}
+      <Card title="Transactions Ledger" subtitle="Review processed invoices and receipt details">
+        <Table
+          headers={tableHeaders}
+          data={payments}
+          searchableKey="paymentId"
+          searchPlaceholder="Search payments by ID..."
+          emptyMessage="No payments logged in system"
+          renderRow={(payment) => (
+            <tr key={payment._id} className="hover:bg-slate-50/50 transition-colors">
+              <td className="px-6 py-4 font-bold text-slate-900">{payment.paymentId}</td>
+              <td className="px-6 py-4 text-xs">
+                <div className="text-slate-500">Bill Ref: <span className="font-semibold text-slate-700">{payment.billId}</span></div>
+                <div className="text-slate-500">Patient Ref: <span className="font-semibold text-slate-700">{payment.userId || "—"}</span></div>
+              </td>
+              <td className="px-6 py-4 font-extrabold text-teal-600 text-sm">
+                ${Number(payment.total).toFixed(2)}
+              </td>
+              <td className="px-6 py-4 text-xs font-semibold text-slate-600">
+                <Badge variant={payment.paymentMethod === 'Card' ? 'info' : 'success'} size="xs">
+                  {payment.paymentMethod}
+                </Badge>
+              </td>
+              <td className="px-6 py-4">
+                <Badge variant={payment.status === 'Completed' ? 'success' : payment.status === 'Pending' ? 'warning' : 'danger'} size="xs">
+                  {payment.status}
+                </Badge>
+              </td>
+              <td className="px-6 py-4 text-xs text-slate-500">
+                {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "—"}
+              </td>
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-2 justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-teal-600 hover:text-teal-700 hover:bg-teal-50"
+                    onClick={() => handleEdit(payment)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    onClick={() => handleDelete(payment._id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          )}
+        />
+      </Card>
     </div>
   );
 };

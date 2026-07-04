@@ -25,12 +25,14 @@ import AdminDoctors from "../pages/admin/AdminDoctors";
 import AdminPatients from "../pages/admin/AdminPatients";
 import AdminMedicines from "../pages/admin/AdminMedicines";
 import AdminBills from "../pages/admin/AdminBills";
+import AdminNotes from "../pages/admin/AdminNotes";
 
 // User Pages
 import UserHome from "../pages/user/UserHome";
 import Appointment from "../pages/user/Appointment";
 import Medicine from "../pages/user/Medicine";
 import MyAppointments from "../pages/user/MyAppointments";
+import UserNotes from "../pages/user/UserNotes";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, role }) => {
@@ -76,6 +78,7 @@ export default function AppRoutes() {
               <Route path="patients" element={<AdminPatients />} />
               <Route path="medicines" element={<AdminMedicines />} />
               <Route path="bills" element={<AdminBills />} />
+              <Route path="notes" element={<AdminNotes />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AdminLayout>
@@ -91,6 +94,7 @@ export default function AppRoutes() {
               <Route path="appointment" element={<Appointment />} />
               <Route path="appointments" element={<MyAppointments />} />
               <Route path="medicine" element={<Medicine />} />
+              <Route path="notes" element={<UserNotes />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </UserLayout>

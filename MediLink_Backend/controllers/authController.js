@@ -73,7 +73,7 @@ export const login = async (req, res) => {
   const access = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "15m" });
   const refresh = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
 
-  res.json({ access, refresh, user: { id: user._id, email: user.email, role: user.role } });
+  res.json({ access, refresh, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
 };
 
 // Logout
@@ -87,19 +87,18 @@ export const logout = async (req, res) => {
   res.json({ message: "Logged out successfully" });
 };
 
-// Register only for users (admins are fixed)
+// Register users and admins
 export const register = async (req, res) => {
   const { name, email, password, role } = req.body;
-  if (role === "admin") return res.status(403).json({ message: "Cannot register admin accounts" });
 
   const existing = await User.findOne({ email });
   if (existing) return res.status(409).json({ message: "Email taken" });
 
   const hash = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hash, role: "user" });
+  const user = await User.create({ name, email, password: hash, role: role || "user" });
 
   const access = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "15m" });
   const refresh = jwt.sign({ id: user._id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "30d" });
 
-  res.json({ access, refresh, user: { id: user._id, email: user.email, role: user.role } });
+  res.json({ access, refresh, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
 };
