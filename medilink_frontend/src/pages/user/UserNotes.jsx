@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -24,15 +24,11 @@ const UserNotes = () => {
         tags: ""
     });
 
-    const showToast = (message, type = "success") => {
+    const showToast = useCallback((message, type = "success") => {
         setToast({ message, type });
-    };
+    }, []);
 
-    useEffect(() => {
-        fetchNotes();
-    }, [filterCategory]);
-
-    const fetchNotes = async () => {
+    const fetchNotes = useCallback(async () => {
         try {
             setLoading(true);
             const userId = localStorage.getItem("userId") || "";
@@ -56,7 +52,11 @@ const UserNotes = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filterCategory, showToast]);
+
+    useEffect(() => {
+        fetchNotes();
+    }, [fetchNotes]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

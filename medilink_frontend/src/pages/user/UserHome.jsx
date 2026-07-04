@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
@@ -9,18 +9,19 @@ import { Skeleton } from "../../components/ui/Loader";
 const UserHome = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const userId = user.id || user._id;
+  const userRefId = user.userId;
   
   const [appointments, setAppointments] = useState([]);
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
-      if (!user.id && !user._id) {
+      if (!userId) {
         setLoading(false);
         return;
       }
-      const userId = user.id || user._id;
       
       const [appointmentsRes, billsRes] = await Promise.all([
         client.get(`/api/appointments/user/${userId}`),
@@ -28,7 +29,7 @@ const UserHome = () => {
       ]);
 
       const appts = appointmentsRes.data.appointments || appointmentsRes.data || [];
-      const userBills = (billsRes.data || []).filter(b => b.patientId === user.userId);
+      const userBills = (billsRes.data || []).filter(b => b.patientId === userRefId);
 
       setAppointments(appts.slice(0, 3));
       setBills(userBills.slice(0, 3));
@@ -37,11 +38,11 @@ const UserHome = () => {
       console.error("Error fetching user dashboard data:", err);
       setLoading(false);
     }
-  };
+  }, [userId, userRefId]);
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+  }, [fetchUserData]);
 
   if (loading) {
     return (

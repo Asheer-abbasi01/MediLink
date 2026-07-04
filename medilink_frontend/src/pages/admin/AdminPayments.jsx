@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
@@ -26,11 +26,11 @@ const AdminPayments = () => {
   const [toast, setToast] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
-  };
+  }, []);
 
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       const res = await client.get("/api/payments");
       setPayments(res.data || []);
@@ -40,9 +40,11 @@ const AdminPayments = () => {
       showToast("Error retrieving payment logs", "error");
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
-  useEffect(() => { fetchPayments(); }, []);
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });

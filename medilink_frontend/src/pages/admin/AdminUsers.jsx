@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -22,11 +22,11 @@ const AdminUsers = () => {
   const [toast, setToast] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await client.get("/api/users");
       setUsers(res.data || []);
@@ -36,11 +36,11 @@ const AdminUsers = () => {
       showToast("Error retrieving user records", "error");
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
