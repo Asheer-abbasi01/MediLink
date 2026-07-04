@@ -31,9 +31,12 @@ const app = express();
 
 // ----- MIDDLEWARE -----
 app.use(helmet()); // basic security headers
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "*" // tighten this in production
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+  })
+);
 app.use(express.json()); // parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // parse form bodies
 app.use(morgan(process.env.NODE_ENV === "production" ? "common" : "dev")); // logging
