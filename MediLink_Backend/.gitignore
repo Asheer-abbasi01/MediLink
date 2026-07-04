@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Uploads (if generated at runtime)
+uploads/
+
+# OS files
+.DS_Store
