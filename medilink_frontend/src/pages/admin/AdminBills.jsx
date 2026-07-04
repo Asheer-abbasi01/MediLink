@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import Card from "../../components/ui/Card";
@@ -22,29 +22,48 @@ const AdminBills = () => {
   });
   const [editingId, setEditingId] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [toast, setToast] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
-  };
+  }, []);
 
-  const fetchBills = async () => {
-    try {
-      const res = await client.get("/api/bills");
-      setBills(res.data || []);
-      generateChart(res.data);
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      showToast("Error retrieving bills", "error");
-      setLoading(false);
-    }
-  };
+  const generateChart = useCallback((billsList) => {
+    const months = Array.from({ length: 12 }, (_, i) =>
+      new Date(0, i).toLocaleString("default", { month: "short" })
+    );
+
+    const data = months.map((month, index) => {
+      const filtered = billsList.filter((b) => {
+        if (!b.createdAt) return false;
+        return new Date(b.createdAt).getMonth() === index;
+      });
+      const count = filtered.length;
+      const total = filtered.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+      return { month, bills: count, revenue: total };
+    });
+
+    setChartData(data);
+  }, []);
 
   useEffect(() => {
+    const fetchBills = async () => {
+      try {
+        const res = await client.get("/api/bills");
+        setBills(res.data || []);
+        generateChart(res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        showToast("Error retrieving bills", "error");
+        setLoading(false);
+      }
+    };
+
     fetchBills();
-  }, []);
+  }, [generateChart, refreshTrigger, showToast]);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -69,7 +88,7 @@ const AdminBills = () => {
       }
       setFormData({ billId: "", patientId: "", doctorId: "", totalAmount: "", status: "" });
       setEditingId(null);
-      fetchBills();
+      setRefreshTrigger(prev => prev + 1);
     } catch (err) {
       console.error(err);
       showToast("Error saving bill", "error");
@@ -94,9 +113,7 @@ const AdminBills = () => {
     if (!window.confirm("Are you sure you want to delete this bill?")) return;
     try {
       await client.delete(`/api/bills/${id}`);
-      const updated = bills.filter((b) => b._id !== id);
-      setBills(updated);
-      generateChart(updated);
+      setRefreshTrigger(prev => prev + 1);
       showToast("Bill deleted successfully");
     } catch (err) {
       console.error(err);
@@ -104,23 +121,7 @@ const AdminBills = () => {
     }
   };
 
-  const generateChart = (billsList) => {
-    const months = Array.from({ length: 12 }, (_, i) =>
-      new Date(0, i).toLocaleString("default", { month: "short" })
-    );
-
-    const data = months.map((month, index) => {
-      const filtered = billsList.filter((b) => {
-        if (!b.createdAt) return false;
-        return new Date(b.createdAt).getMonth() === index;
-      });
-      const count = filtered.length;
-      const total = filtered.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
-      return { month, bills: count, revenue: total };
-    });
-
-    setChartData(data);
-  };
+  // generateChart is now memoized near the top of the component
 
   const getFilteredBills = () => {
     if (activeTab === "paid") {

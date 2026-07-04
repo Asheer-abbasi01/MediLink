@@ -19,19 +19,19 @@ export default function Doctors() {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
+        const fetchDoctors = async () => {
+            try {
+                const res = await client.get("/api/doctors");
+                setDoctors(res.data.doctors || res.data || []);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching doctors:", err);
+                setLoading(false);
+            }
+        };
+
         fetchDoctors();
     }, []);
-
-    const fetchDoctors = async () => {
-        try {
-            const res = await client.get("/api/doctors");
-            setDoctors(res.data.doctors || res.data || []);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching doctors:", err);
-            setLoading(false);
-        }
-    };
 
     const specialties = ["All", ...new Set(doctors.map(doc => doc.specialty).filter(Boolean))];
 

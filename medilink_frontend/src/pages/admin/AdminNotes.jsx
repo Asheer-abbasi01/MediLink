@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -28,41 +28,43 @@ const AdminNotes = () => {
         isPrivate: false
     });
 
-    const showToast = (message, type = "success") => {
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    const showToast = useCallback((message, type = "success") => {
         setToast({ message, type });
-    };
+    }, []);
 
     useEffect(() => {
+        const fetchNotes = async () => {
+            try {
+                setLoading(true);
+                const userId = localStorage.getItem("userId") || "";
+                
+                const params = new URLSearchParams();
+                if (filterCategory !== "all") params.append("category", filterCategory);
+                if (filterPriority !== "all") params.append("priority", filterPriority);
+
+                let url = "/api/notes";
+                if (params.toString()) url += `?${params.toString()}`;
+
+                const response = await client.get(url, {
+                    headers: {
+                        "x-user-role": "admin",
+                        "x-user-id": userId
+                    }
+                });
+
+                setNotes(response.data.data || response.data || []);
+            } catch (error) {
+                console.error("Error fetching notes:", error);
+                showToast("Failed to fetch notes", "error");
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchNotes();
-    }, [filterCategory, filterPriority]);
-
-    const fetchNotes = async () => {
-        try {
-            setLoading(true);
-            const userId = localStorage.getItem("userId") || "";
-            
-            const params = new URLSearchParams();
-            if (filterCategory !== "all") params.append("category", filterCategory);
-            if (filterPriority !== "all") params.append("priority", filterPriority);
-
-            let url = "/api/notes";
-            if (params.toString()) url += `?${params.toString()}`;
-
-            const response = await client.get(url, {
-                headers: {
-                    "x-user-role": "admin",
-                    "x-user-id": userId
-                }
-            });
-
-            setNotes(response.data.data || response.data || []);
-        } catch (error) {
-            console.error("Error fetching notes:", error);
-            showToast("Failed to fetch notes", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [filterCategory, filterPriority, refreshTrigger, showToast]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -94,7 +96,7 @@ const AdminNotes = () => {
 
             setShowModal(false);
             resetForm();
-            fetchNotes();
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error("Error saving note:", error);
             showToast("Failed to save note", "error");
@@ -115,7 +117,7 @@ const AdminNotes = () => {
                 }
             });
             showToast("Note deleted successfully!");
-            fetchNotes();
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error("Error deleting note:", error);
             showToast("Failed to delete note", "error");

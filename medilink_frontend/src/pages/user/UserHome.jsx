@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
@@ -16,33 +16,33 @@ const UserHome = () => {
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserData = useCallback(async () => {
-    try {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-      
-      const [appointmentsRes, billsRes] = await Promise.all([
-        client.get(`/api/appointments/user/${userId}`),
-        client.get("/api/bills")
-      ]);
-
-      const appts = appointmentsRes.data.appointments || appointmentsRes.data || [];
-      const userBills = (billsRes.data || []).filter(b => b.patientId === userRefId);
-
-      setAppointments(appts.slice(0, 3));
-      setBills(userBills.slice(0, 3));
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching user dashboard data:", err);
-      setLoading(false);
-    }
-  }, [userId, userRefId]);
-
   useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        if (!userId) {
+          setLoading(false);
+          return;
+        }
+        
+        const [appointmentsRes, billsRes] = await Promise.all([
+          client.get(`/api/appointments/user/${userId}`),
+          client.get("/api/bills")
+        ]);
+
+        const appts = appointmentsRes.data.appointments || appointmentsRes.data || [];
+        const userBills = (billsRes.data || []).filter(b => b.patientId === userRefId);
+
+        setAppointments(appts.slice(0, 3));
+        setBills(userBills.slice(0, 3));
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching user dashboard data:", err);
+        setLoading(false);
+      }
+    };
+
     fetchUserData();
-  }, [fetchUserData]);
+  }, [userId, userRefId]);
 
   if (loading) {
     return (

@@ -26,21 +26,21 @@ const AdminUsers = () => {
     setToast({ message, type });
   }, []);
 
-  const fetchUsers = useCallback(async () => {
-    try {
-      const res = await client.get("/api/users");
-      setUsers(res.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching users:", err);
-      showToast("Error retrieving user records", "error");
-      setLoading(false);
-    }
-  }, [showToast]);
-
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await client.get("/api/users");
+        setUsers(res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+        showToast("Error retrieving user records", "error");
+        setLoading(false);
+      }
+    };
+
     fetchUsers();
-  }, [fetchUsers]);
+  }, [showToast]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

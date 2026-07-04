@@ -19,26 +19,26 @@ export default function BookAppointmentModal({ doctor, isOpen, onClose, onSucces
     };
 
     useEffect(() => {
+        const fetchAvailableSlots = async () => {
+            try {
+                setLoading(true);
+                setError("");
+                const res = await client.get(
+                    `/api/appointments/available-slots/${doctor._id}/${selectedDate}`
+                );
+                setAvailableSlots(res.data.slots || []);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching slots:", err);
+                setError("Failed to load available slots");
+                setLoading(false);
+            }
+        };
+
         if (selectedDate && doctor) {
             fetchAvailableSlots();
         }
     }, [selectedDate, doctor]);
-
-    const fetchAvailableSlots = async () => {
-        try {
-            setLoading(true);
-            setError("");
-            const res = await client.get(
-                `/api/appointments/available-slots/${doctor._id}/${selectedDate}`
-            );
-            setAvailableSlots(res.data.slots || []);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching slots:", err);
-            setError("Failed to load available slots");
-            setLoading(false);
-        }
-    };
 
     const handleBookAppointment = async () => {
         try {

@@ -24,39 +24,41 @@ const UserNotes = () => {
         tags: ""
     });
 
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     const showToast = useCallback((message, type = "success") => {
         setToast({ message, type });
     }, []);
 
-    const fetchNotes = useCallback(async () => {
-        try {
-            setLoading(true);
-            const userId = localStorage.getItem("userId") || "";
-            let url = "/api/notes";
-
-            if (filterCategory !== "all") {
-                url += `?category=${filterCategory}`;
-            }
-
-            const response = await client.get(url, {
-                headers: {
-                    "x-user-role": "user",
-                    "x-user-id": userId
-                }
-            });
-
-            setNotes(response.data.data || response.data || []);
-        } catch (error) {
-            console.error("Error fetching notes:", error);
-            showToast("Failed to fetch notes", "error");
-        } finally {
-            setLoading(false);
-        }
-    }, [filterCategory, showToast]);
-
     useEffect(() => {
+        const fetchNotes = async () => {
+            try {
+                setLoading(true);
+                const userId = localStorage.getItem("userId") || "";
+                let url = "/api/notes";
+
+                if (filterCategory !== "all") {
+                    url += `?category=${filterCategory}`;
+                }
+
+                const response = await client.get(url, {
+                    headers: {
+                        "x-user-role": "user",
+                        "x-user-id": userId
+                    }
+                });
+
+                setNotes(response.data.data || response.data || []);
+            } catch (error) {
+                console.error("Error fetching notes:", error);
+                showToast("Failed to fetch notes", "error");
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchNotes();
-    }, [fetchNotes]);
+    }, [filterCategory, refreshTrigger, showToast]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -89,7 +91,7 @@ const UserNotes = () => {
 
             setShowModal(false);
             resetForm();
-            fetchNotes();
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error("Error saving note:", error);
             showToast("Failed to save note", "error");
@@ -110,7 +112,7 @@ const UserNotes = () => {
                 }
             });
             showToast("Note deleted successfully!");
-            fetchNotes();
+            setRefreshTrigger(prev => prev + 1);
         } catch (error) {
             console.error("Error deleting note:", error);
             showToast("Failed to delete note", "error");

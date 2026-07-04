@@ -30,21 +30,21 @@ const AdminPayments = () => {
     setToast({ message, type });
   }, []);
 
-  const fetchPayments = useCallback(async () => {
-    try {
-      const res = await client.get("/api/payments");
-      setPayments(res.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching payments:", err);
-      showToast("Error retrieving payment logs", "error");
-      setLoading(false);
-    }
-  }, [showToast]);
-
   useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const res = await client.get("/api/payments");
+        setPayments(res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching payments:", err);
+        showToast("Error retrieving payment logs", "error");
+        setLoading(false);
+      }
+    };
+
     fetchPayments();
-  }, [fetchPayments]);
+  }, [showToast]);
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });

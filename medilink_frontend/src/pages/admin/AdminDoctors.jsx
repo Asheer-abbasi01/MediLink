@@ -29,19 +29,19 @@ const AdminDoctors = () => {
     setToast({ message, type });
   };
 
-  const fetchDoctors = async () => {
-    try {
-      const res = await client.get("/api/doctors");
-      setDoctors(res.data.doctors || res.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching doctors:", err);
-      showToast("Failed to fetch doctors list", "error");
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const res = await client.get("/api/doctors");
+        setDoctors(res.data.doctors || res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching doctors:", err);
+        showToast("Failed to fetch doctors list", "error");
+        setLoading(false);
+      }
+    };
+
     fetchDoctors();
   }, []);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -25,25 +25,25 @@ const AdminMedicines = () => {
   const [toast, setToast] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
-  };
-
-  const fetchMedicines = async () => {
-    try {
-      const res = await client.get("/api/medicines");
-      setMedicines(res.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching medicines:", err);
-      showToast("Error retrieving medicine logs", "error");
-      setLoading(false);
-    }
-  };
+  }, []);
 
   useEffect(() => {
+    const fetchMedicines = async () => {
+      try {
+        const res = await client.get("/api/medicines");
+        setMedicines(res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching medicines:", err);
+        showToast("Error retrieving medicine logs", "error");
+        setLoading(false);
+      }
+    };
+
     fetchMedicines();
-  }, []);
+  }, [showToast]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

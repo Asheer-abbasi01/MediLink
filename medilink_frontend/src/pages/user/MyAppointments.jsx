@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -11,40 +11,41 @@ export default function MyAppointments() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all"); // all, upcoming, past
     const [error, setError] = useState("");
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [toast, setToast] = useState(null);
 
-    const showToast = (message, type = "success") => {
+    const showToast = useCallback((message, type = "success") => {
         setToast({ message, type });
-    };
-
-    useEffect(() => {
-        fetchAppointments();
     }, []);
 
-    const fetchAppointments = async () => {
-        try {
-            setLoading(true);
-            setError("");
+    useEffect(() => {
+        const fetchAppointments = async () => {
+            try {
+                setLoading(true);
+                setError("");
 
-            const userStr = localStorage.getItem("user");
-            if (!userStr) {
-                setError("Please login to view appointments");
+                const userStr = localStorage.getItem("user");
+                if (!userStr) {
+                    setError("Please login to view appointments");
+                    setLoading(false);
+                    return;
+                }
+
+                const user = JSON.parse(userStr);
+                const userId = user.id || user._id;
+                
+                const res = await client.get(`/api/appointments/user/${userId}`);
+                setAppointments(res.data.appointments || res.data || []);
                 setLoading(false);
-                return;
+            } catch (err) {
+                console.error("Error fetching appointments:", err);
+                setError("Failed to load appointments");
+                setLoading(false);
             }
+        };
 
-            const user = JSON.parse(userStr);
-            const userId = user.id || user._id;
-            
-            const res = await client.get(`/api/appointments/user/${userId}`);
-            setAppointments(res.data.appointments || res.data || []);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching appointments:", err);
-            setError("Failed to load appointments");
-            setLoading(false);
-        }
-    };
+        fetchAppointments();
+    }, [refreshTrigger]);
 
     const handleCancelAppointment = async (appointmentId) => {
         if (!window.confirm("Are you sure you want to cancel this appointment slot request?")) {
@@ -53,7 +54,7 @@ export default function MyAppointments() {
 
         try {
             await client.delete(`/api/appointments/${appointmentId}`);
-            fetchAppointments();
+            setRefreshTrigger(prev => prev + 1);
             showToast("Appointment cancelled successfully");
         } catch (err) {
             console.error("Error cancelling appointment:", err);

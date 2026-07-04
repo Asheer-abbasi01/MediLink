@@ -16,20 +16,22 @@ export default function Medicines() {
     const [selectedMedicine, setSelectedMedicine] = useState(null);
     const [showPurchasePopup, setShowPurchasePopup] = useState(false);
 
-    useEffect(() => {
-        fetchMedicines();
-    }, []);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    const fetchMedicines = async () => {
-        try {
-            const res = await client.get("/api/medicines");
-            setMedicines(res.data || []);
-            setLoading(false);
-        } catch (err) {
-            console.error("Error fetching medicines:", err);
-            setLoading(false);
-        }
-    };
+    useEffect(() => {
+        const fetchMedicines = async () => {
+            try {
+                const res = await client.get("/api/medicines");
+                setMedicines(res.data || []);
+                setLoading(false);
+            } catch (err) {
+                console.error("Error fetching medicines:", err);
+                setLoading(false);
+            }
+        };
+
+        fetchMedicines();
+    }, [refreshTrigger]);
 
     const filteredMedicines = medicines.filter(med => {
         const matchesSearch = med.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,7 +74,7 @@ export default function Medicines() {
     };
 
     const handlePurchaseSuccess = () => {
-        fetchMedicines();
+        setRefreshTrigger(prev => prev + 1);
     };
 
     const handleClosePopup = () => {

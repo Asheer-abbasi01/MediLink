@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import client from "../../api/client";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -17,51 +17,49 @@ const AdminAppointments = () => {
     doctorId: "All",
     date: ""
   });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
-  };
-
-  useEffect(() => {
-    fetchDoctors();
-    fetchAppointments();
   }, []);
 
   useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const res = await client.get("/api/doctors");
+        setDoctors(res.data.doctors || res.data || []);
+      } catch (err) {
+        console.error("Error fetching doctors:", err);
+      }
+    };
+    fetchDoctors();
+  }, []);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        const params = {};
+        if (filters.status !== "All") params.status = filters.status;
+        if (filters.doctorId !== "All") params.doctorId = filters.doctorId;
+        if (filters.date) params.date = filters.date;
+
+        const res = await client.get("/api/appointments", { params });
+        setAppointments(res.data.appointments || res.data || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+        showToast("Failed to load appointments logs", "error");
+        setLoading(false);
+      }
+    };
     fetchAppointments();
-  }, [filters]);
-
-  const fetchDoctors = async () => {
-    try {
-      const res = await client.get("/api/doctors");
-      setDoctors(res.data.doctors || res.data || []);
-    } catch (err) {
-      console.error("Error fetching doctors:", err);
-    }
-  };
-
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      if (filters.status !== "All") params.status = filters.status;
-      if (filters.doctorId !== "All") params.doctorId = filters.doctorId;
-      if (filters.date) params.date = filters.date;
-
-      const res = await client.get("/api/appointments", { params });
-      setAppointments(res.data.appointments || res.data || []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error fetching appointments:", err);
-      showToast("Failed to load appointments logs", "error");
-      setLoading(false);
-    }
-  };
+  }, [filters, refreshTrigger, showToast]);
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       await client.put(`/api/appointments/${id}/status`, { status: newStatus });
-      fetchAppointments();
+      setRefreshTrigger(prev => prev + 1);
       showToast(`Appointment status updated to ${newStatus}`);
     } catch (err) {
       console.error("Error updating status:", err);
@@ -73,7 +71,7 @@ const AdminAppointments = () => {
     if (window.confirm("Are you sure you want to cancel this appointment request?")) {
       try {
         await client.delete(`/api/appointments/${id}`);
-        fetchAppointments();
+        setRefreshTrigger(prev => prev + 1);
         showToast("Appointment cancelled successfully");
       } catch (err) {
         console.error("Error cancelling appointment:", err);
@@ -126,7 +124,7 @@ const AdminAppointments = () => {
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Appointments Ledger</h2>
           <p className="text-slate-500 text-sm font-medium mt-1">Review, authorize, and track all booking timelines</p>
         </div>
-        <Button onClick={fetchAppointments} variant="secondary">
+        <Button onClick={() => setRefreshTrigger(prev => prev + 1)} variant="secondary">
           Refresh List
         </Button>
       </div>
