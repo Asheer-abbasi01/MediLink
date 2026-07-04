@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import Navbar from "../components/Navbar";
 import BookAppointmentModal from "../components/BookAppointmentModal";
@@ -10,8 +9,6 @@ import Badge from "../components/ui/Badge";
 import { Skeleton } from "../components/ui/Loader";
 
 export default function Doctors() {
-//   const navigate = useNavigate();
-
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
